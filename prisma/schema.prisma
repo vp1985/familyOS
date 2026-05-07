@@ -19,15 +19,23 @@ enum FamilyMemberRole {
   other
 }
 
+enum MoneyTransactionType {
+  allowance
+  loan
+  repayment
+  adjustment
+}
+
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  name         String
-  passwordHash String
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  familyUsers  FamilyUser[]
-  sessions     Session[]
+  id                       String             @id @default(cuid())
+  email                    String             @unique
+  name                     String
+  passwordHash             String
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  familyUsers              FamilyUser[]
+  sessions                 Session[]
+  createdMoneyTransactions MoneyTransaction[]
 }
 
 model Session {
@@ -45,12 +53,14 @@ model Session {
 }
 
 model Family {
-  id          String         @id @default(cuid())
-  name        String
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  users       FamilyUser[]
-  members     FamilyMember[]
+  id                String             @id @default(cuid())
+  name              String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  users             FamilyUser[]
+  members           FamilyMember[]
+  financeAccounts   FinanceAccount[]
+  moneyTransactions MoneyTransaction[]
 }
 
 model FamilyUser {
@@ -70,17 +80,52 @@ model FamilyUser {
 }
 
 model FamilyMember {
-  id        String           @id @default(cuid())
-  familyId  String
-  name      String
-  role      FamilyMemberRole
-  color     String?
-  icon      String?
-  birthday  DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id                String             @id @default(cuid())
+  familyId          String
+  name              String
+  role              FamilyMemberRole
+  color             String?
+  icon              String?
+  birthday          DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  financeAccount    FinanceAccount?
+  moneyTransactions MoneyTransaction[]
 
   @@index([familyId])
+}
+
+model FinanceAccount {
+  id             String   @id @default(cuid())
+  familyId       String
+  familyMemberId String   @unique
+  balanceCents   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model MoneyTransaction {
+  id                String               @id @default(cuid())
+  familyId          String
+  familyMemberId    String
+  type              MoneyTransactionType
+  title             String
+  amountCents       Int
+  balanceAfterCents Int
+  createdByUserId   String
+  createdAt         DateTime             @default(now())
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, createdAt])
+  @@index([familyMemberId, createdAt])
 }

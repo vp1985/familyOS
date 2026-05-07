@@ -2,7 +2,7 @@
 
 Mobile-first MVP für Familien-Finanzen, Regeln, Konsequenzen und Belohnungen.
 
-## Aktueller Stand: Sprint 2
+## Aktueller Stand: Sprint 3
 
 Umgesetzt:
 
@@ -13,19 +13,23 @@ Umgesetzt:
 - Passwort-Hashing mit `scrypt`
 - transaktionale Familien-Erstellung beim Registrieren
 - geschützter `/app`-Bereich mit Server-Component-Familienkontext
-- Dashboard mit echtem Familiennamen, Nutzer, Kinderanzahl und Familienprofilen
+- Dashboard mit echtem Familiennamen, Nutzer, Kinderanzahl, Familienprofilen und Kinder-Geldsumme
 - Familienseite zum Anlegen von Kinder-, Eltern- und sonstigen Profilen
-- serverseitig gescopte `FamilyMember`-Queries und Server Action
+- automatische Kinderkonten für neue Kinderprofile
+- Kinder-Finanzseite unter `/app/finance` mit Guthaben je Kind, Gesamtguthaben und Verlauf
+- Geldbewegungen für `Taschengeld`, `Leihe/Ausgabe`, `Rückzahlung` und `Korrektur auf Betrag`
+- serverseitig gescopte `FamilyMember`-, `FinanceAccount`- und `MoneyTransaction`-Queries und Server Actions
 - mobile App-Shell mit Header und Bottom Navigation
 - Healthcheck unter `/app/health`
-- Unit-Tests für Auth-Utilities und FamilyMember-Input
+- Unit-Tests für Auth-Utilities, FamilyMember-Input und Geldlogik
 
 Noch nicht umgesetzt:
 
-- Finanzen, gemeinsame Ausgaben und Projekt-Splits
+- gemeinsame Ausgaben und Projekt-Splits zwischen mehreren Personen
 - Regeln, Konsequenzen, Belohnungen und Punkte
 - Einladungen für weitere Eltern/Betreuer
 - Bearbeiten/Löschen von Familienprofilen
+- Bearbeiten/Löschen/Storno von Geldbewegungen
 
 ## Lokaler Start
 
@@ -62,6 +66,8 @@ Migration ausführen:
 npm run db:migrate -- --name init
 ```
 
+Sprint-3-Migration heißt aktuell `add_child_finances`.
+
 Prisma Studio optional:
 
 ```bash
@@ -81,6 +87,7 @@ Dann öffnen:
 - Login: <http://localhost:3000/login>
 - App-Dashboard: <http://localhost:3000/app>
 - Familie/Kinderprofile: <http://localhost:3000/app/family>
+- Kinder-Finanzen: <http://localhost:3000/app/finance>
 - Healthcheck: <http://localhost:3000/app/health>
 
 ## Checks
@@ -109,10 +116,19 @@ npm run build
 3. Speichern und prüfen, dass das Profil in der Liste erscheint.
 4. `/app` öffnen und prüfen, dass Kinderanzahl und Profilkarte aktualisiert sind.
 
+### Sprint 3: Kinder-Finanzen
+
+1. Eingeloggt `/app/finance` öffnen.
+2. Prüfen, dass jedes Kinderprofil ein Kinderkonto und das Gesamtguthaben angezeigt wird.
+3. Kind wählen, Betrag z. B. `10,50`, Art `Taschengeld / Plus` und Titel eintragen.
+4. Speichern und prüfen, dass Guthaben, Kinderkonto und Verlauf aktualisiert sind.
+5. Optional `Leihe / Ausgabe`, `Rückzahlung` und `Korrektur auf Betrag` testen.
+
 ## Wichtige Architektur-Regeln
 
 - Planungsdokumente bleiben unter `~/familienapp/planung`.
 - App-Code liegt unter `~/familienapp/app`.
 - `familyId` darf später nie vom Client vertraut werden.
 - Alle Familienabfragen müssen über serverseitigen Familienkontext gescoped werden.
-- Geld-/Punkte-Module kommen erst nach Auth und Familienkontext.
+- Geld- und Punkte-Module müssen transaktional schreiben, sobald sie Salden verändern.
+- Für Geldbeträge intern immer Cent-Integer verwenden, nie Float-Werte.

@@ -86,14 +86,25 @@ export async function createFamilyMemberAction(formData: FormData) {
     redirect("/app/family?error=invalid-member");
   }
 
-  await db.familyMember.create({
-    data: {
-      familyId: context.family.id,
-      name: parsed.name,
-      role: parsed.role,
-      color: parsed.color,
-      icon: parsed.icon,
-    },
+  await db.$transaction(async (tx) => {
+    const member = await tx.familyMember.create({
+      data: {
+        familyId: context.family.id,
+        name: parsed.name,
+        role: parsed.role,
+        color: parsed.color,
+        icon: parsed.icon,
+      },
+    });
+
+    if (member.role === "child") {
+      await tx.financeAccount.create({
+        data: {
+          familyId: context.family.id,
+          familyMemberId: member.id,
+        },
+      });
+    }
   });
 
   revalidatePath("/app");

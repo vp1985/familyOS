@@ -2,8 +2,8 @@ import Link from "next/link";
 
 const items = [
   { href: "/app", label: "Start", icon: "🏠" },
-  { href: "/app/health", label: "Status", icon: "✅" },
   { href: "/app/family", label: "Familie", icon: "👨‍👩‍👧" },
+  { href: "/app/finance", label: "Geld", icon: "💶" },
   { href: "/app/settings", label: "Setup", icon: "⚙️" },
 ];
 
