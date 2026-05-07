@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: familyos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: familyos
+      POSTGRES_PASSWORD: familyos_dev_password
+      POSTGRES_DB: familyos
+    ports:
+      - "54329:5432"
+    volumes:
+      - familyos_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familyos -d familyos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  familyos_postgres_data:

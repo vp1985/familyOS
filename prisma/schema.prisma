@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FamilyUserRole {
+  owner
+  admin
+  viewer
+}
+
+enum FamilyMemberRole {
+  parent
+  child
+  other
+}
+
+model User {
+  id          String       @id @default(cuid())
+  email       String       @unique
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  familyUsers FamilyUser[]
+}
+
+model Family {
+  id          String         @id @default(cuid())
+  name        String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  users       FamilyUser[]
+  members     FamilyMember[]
+}
+
+model FamilyUser {
+  id        String         @id @default(cuid())
+  familyId  String
+  userId    String
+  role      FamilyUserRole @default(viewer)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@index([userId])
+  @@index([familyId])
+}
+
+model FamilyMember {
+  id        String           @id @default(cuid())
+  familyId  String
+  name      String
+  role      FamilyMemberRole
+  color     String?
+  icon      String?
+  birthday  DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
