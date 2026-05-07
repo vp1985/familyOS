@@ -37,9 +37,14 @@ export default function Home() {
                 </li>
               ))}
             </ul>
-            <Button asChild className="w-full">
-              <Link href="/app">App-Shell ansehen</Link>
-            </Button>
+            <div className="grid gap-2">
+              <Button asChild className="w-full">
+                <Link href="/register">Familie erstellen</Link>
+              </Button>
+              <Link className="text-center text-sm font-semibold text-slate-700" href="/login">
+                Einloggen
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </section>

@@ -1,12 +1,27 @@
-export function AppHeader() {
+import { logoutAction } from "@/lib/auth";
+
+type AppHeaderProps = {
+  familyName: string;
+  userName: string;
+};
+
+export function AppHeader({ familyName, userName }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur">
-      <div className="mx-auto flex max-w-md items-center justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">FamilyOS</p>
-          <h1 className="text-lg font-bold text-slate-950">Familien-Cockpit</h1>
+      <div className="mx-auto flex max-w-md items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium uppercase tracking-wide text-emerald-600">{familyName}</p>
+          <h1 className="truncate text-lg font-bold text-slate-950">Familien-Cockpit</h1>
+          <p className="truncate text-xs text-slate-500">Angemeldet als {userName}</p>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-white">F</div>
+        <form action={logoutAction}>
+          <button
+            className="min-h-10 rounded-2xl bg-slate-100 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+            type="submit"
+          >
+            Logout
+          </button>
+        </form>
       </div>
     </header>
   );

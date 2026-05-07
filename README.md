@@ -2,23 +2,30 @@
 
 Mobile-first MVP für Familien-Finanzen, Regeln, Konsequenzen und Belohnungen.
 
-## Sprint-0-Stand
+## Aktueller Stand: Sprint 1
 
 Umgesetzt:
 
 - Next.js App Router mit TypeScript und Tailwind CSS
-- PostgreSQL per Docker Compose
-- Prisma mit V1-Kernschema (`User`, `Family`, `FamilyUser`, `FamilyMember`)
-- wiederverwendbarer Prisma Client in `lib/db.ts`
-- mobile App-Shell unter `/app`
+- PostgreSQL per Docker Compose auf Host-Port `54329`
+- Prisma 6.19.3 mit V1-Kernschema (`User`, `Family`, `FamilyUser`, `FamilyMember`)
+- Auth-Erweiterung mit `passwordHash` und `Session`
+- eigene Cookie-basierte Registrierung, Login und Logout
+- Passwort-Hashing mit `scrypt`
+- transaktionale Familien-Erstellung beim Registrieren
+- geschützter `/app`-Bereich mit Server-Component-Familienkontext
+- Dashboard mit echtem Familiennamen, Nutzer und Rolle
+- Platzhalter-Seiten für Familie und Setup
+- mobile App-Shell mit Header und Bottom Navigation
 - Healthcheck unter `/app/health`
-- UI-Basiskomponenten
+- Unit-Tests für Auth-Utilities
 
 Noch nicht umgesetzt:
 
-- Auth/Login/Register
-- echte Familien-/Kind-Verwaltung
-- Finanzen, Projekte, Regeln, Konsequenzen, Punkte
+- Kinder-/Familienmitglied-Verwaltung
+- Finanzen, gemeinsame Ausgaben und Projekt-Splits
+- Regeln, Konsequenzen, Belohnungen und Punkte
+- Einladungen für weitere Eltern/Betreuer
 
 ## Lokaler Start
 
@@ -70,19 +77,32 @@ npm run dev
 Dann öffnen:
 
 - Startseite: <http://localhost:3000>
-- App-Shell: <http://localhost:3000/app>
+- Registrierung: <http://localhost:3000/register>
+- Login: <http://localhost:3000/login>
+- App-Dashboard: <http://localhost:3000/app>
 - Healthcheck: <http://localhost:3000/app/health>
 
 ## Checks
 
 ```bash
+npm test
 npm run lint
 npm run build
 ```
+
+## Manuelle Smoke-Checks für Sprint 1
+
+1. `/register` öffnen.
+2. Name, E-Mail, Passwort mit mindestens 8 Zeichen und Familienname eintragen.
+3. Absenden und Weiterleitung nach `/app` prüfen.
+4. Dashboard muss Familienname, Nutzername und Rolle `owner` anzeigen.
+5. Logout klicken und prüfen, dass `/login` erscheint.
+6. Mit derselben E-Mail und Passwort erneut einloggen.
 
 ## Wichtige Architektur-Regeln
 
 - Planungsdokumente bleiben unter `~/familienapp/planung`.
 - App-Code liegt unter `~/familienapp/app`.
 - `familyId` darf später nie vom Client vertraut werden.
+- Alle Familienabfragen müssen über serverseitigen Familienkontext gescoped werden.
 - Geld-/Punkte-Module kommen erst nach Auth und Familienkontext.
