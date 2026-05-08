@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import {
+  getRuleTemplateById,
+  parseRuleTemplateSelection,
+} from "@/lib/rule-templates";
 
 const ruleInputSchema = z.object({
   title: z.string().trim().min(2),
@@ -137,6 +141,43 @@ export async function createRule(formData: FormData) {
   });
 
   return rule.id;
+}
+
+export async function createRuleTemplates(formData: FormData) {
+  const context = await requireFamilyAdmin();
+  const selection = parseRuleTemplateSelection(formData);
+  if (isInvalidInput(selection)) redirect("/app/rules?error=invalid-rule-set");
+
+  const templates = selection.templateIds
+    .map((id) => getRuleTemplateById(id))
+    .filter((template): template is NonNullable<typeof template> => Boolean(template));
+
+  if (templates.length === 0) redirect("/app/rules?error=invalid-rule-set");
+
+  const existingRules = await db.rule.findMany({
+    where: {
+      familyId: context.family.id,
+      OR: templates.map((template) => ({ title: template.title, category: template.category })),
+    },
+    select: { title: true, category: true },
+  });
+  const existingKeys = new Set(existingRules.map((rule) => `${rule.category}:${rule.title}`));
+  const rulesToCreate = templates.filter((template) => !existingKeys.has(`${template.category}:${template.title}`));
+
+  if (rulesToCreate.length === 0) return 0;
+
+  await db.rule.createMany({
+    data: rulesToCreate.map((template) => ({
+      familyId: context.family.id,
+      title: template.title,
+      description: template.description,
+      category: template.category,
+      isActive: true,
+      createdByUserId: context.user.id,
+    })),
+  });
+
+  return rulesToCreate.length;
 }
 
 export async function setRuleActive(ruleId: string, isActive: boolean) {

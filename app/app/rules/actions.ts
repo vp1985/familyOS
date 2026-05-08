@@ -2,13 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createRule, createRuleEvent, setRuleActive } from "@/lib/rules";
+import { createRule, createRuleEvent, createRuleTemplates, setRuleActive } from "@/lib/rules";
 
 export async function createRuleAction(formData: FormData) {
   const ruleId = await createRule(formData);
   revalidatePath("/app");
   revalidatePath("/app/rules");
   redirect(`/app/rules?created=${ruleId}`);
+}
+
+export async function importRuleTemplatesAction(formData: FormData) {
+  const createdCount = await createRuleTemplates(formData);
+  revalidatePath("/app");
+  revalidatePath("/app/rules");
+  redirect(`/app/rules?imported=${createdCount}`);
 }
 
 export async function createRuleEventAction(ruleId: string, formData: FormData) {
