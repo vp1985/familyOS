@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { formatActivityLine, getDashboardData } from "@/lib/dashboard";
+import { confirmDashboardTaskAction, markDashboardTaskDoneAction } from "./actions";
 
 function formatShortDateTime(date: Date) {
   return new Intl.DateTimeFormat("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }).format(date);
@@ -71,9 +72,15 @@ export default async function AppDashboardPage() {
           <div className="grid gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Zu bestätigen</p>
             {agenda.pendingConfirmations.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 text-sm">
-                <span className="font-semibold text-slate-950">{item.title}</span>
-                <span className="text-xs text-slate-600">{item.memberName}</span>
+              <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-950">{item.title}</p>
+                  <p className="text-xs text-slate-600">{item.memberName}</p>
+                </div>
+                <form action={confirmDashboardTaskAction}>
+                  <input type="hidden" name="occurrenceId" value={item.id} />
+                  <Button type="submit" className="min-h-9 px-3 text-xs">Bestätigen</Button>
+                </form>
               </div>
             ))}
           </div>
@@ -83,9 +90,15 @@ export default async function AppDashboardPage() {
           <div className="grid gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Fällige Aufgaben</p>
             {agenda.todayTasks.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                <span className="font-semibold text-slate-950">{item.title}</span>
-                <span className="text-xs text-slate-600">{item.memberName}</span>
+              <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-950">{item.title}</p>
+                  <p className="text-xs text-slate-600">{item.memberName}</p>
+                </div>
+                <form action={markDashboardTaskDoneAction}>
+                  <input type="hidden" name="occurrenceId" value={item.id} />
+                  <Button type="submit" className="min-h-9 px-3 text-xs">Erledigt</Button>
+                </form>
               </div>
             ))}
           </div>

@@ -93,6 +93,15 @@ export function parseCalendarSourceInput(input: { name?: string; url?: string; f
   };
 }
 
+export function buildCalendarSyncPlan<T extends { syncEnabled: boolean; lastSyncedAt: Date | null }>(input: {
+  sources: T[];
+  now: Date;
+  intervalMinutes: number;
+}) {
+  const staleBefore = input.now.getTime() - input.intervalMinutes * 60 * 1000;
+  return input.sources.filter((source) => source.syncEnabled && (!source.lastSyncedAt || source.lastSyncedAt.getTime() <= staleBefore));
+}
+
 function unfoldIcsLines(ics: string) {
   return ics
     .replace(/\r\n/g, "\n")
@@ -307,7 +316,7 @@ export async function createCalendarEvent(formData: FormData) {
   });
 }
 
-async function syncCalendarSource(source: { id: string; familyId: string; familyMemberId: string | null; url: string; createdByUserId: string }) {
+export async function syncCalendarSource(source: { id: string; familyId: string; familyMemberId: string | null; url: string; createdByUserId: string }) {
   const response = await fetch(source.url, { cache: "no-store", headers: { "User-Agent": "FamilyOS Calendar Import" } });
   if (!response.ok) throw new Error(`Kalender konnte nicht geladen werden (${response.status})`);
 
@@ -327,6 +336,25 @@ async function syncCalendarSource(source: { id: string; familyId: string; family
   ]);
 
   return importedEvents.length;
+}
+
+export async function syncDueCalendarSources(intervalMinutes = 60) {
+  const sources = await db.calendarSource.findMany({ where: { syncEnabled: true } });
+  const dueSources = buildCalendarSyncPlan({ sources, now: new Date(), intervalMinutes }) as unknown as Array<{ id: string; familyId: string; familyMemberId: string | null; url: string; createdByUserId: string }>;
+  const results = [];
+
+  for (const source of dueSources) {
+    try {
+      const importedCount = await syncCalendarSource(source);
+      results.push({ sourceId: source.id, ok: true, importedCount });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Import fehlgeschlagen";
+      await db.calendarSource.update({ where: { id: source.id }, data: { lastSyncError: message } });
+      results.push({ sourceId: source.id, ok: false, error: message });
+    }
+  }
+
+  return results;
 }
 
 export async function createCalendarSource(formData: FormData) {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildCalendarEventUpserts,
+  buildCalendarSyncPlan,
   formatDayLabel,
   getWeekRange,
   groupEventsByDay,
@@ -89,6 +90,21 @@ test("parseCalendarSourceInput accepts Google/iCal URLs and optional member", ()
   );
 
   assert.deepEqual(parseCalendarSourceInput({ name: "x", url: "ftp://example.com/feed.ics" }), { success: false });
+});
+
+test("buildCalendarSyncPlan selects enabled sources that were never synced or are stale", () => {
+  const plan = buildCalendarSyncPlan({
+    now: new Date("2026-05-08T12:00:00.000Z"),
+    intervalMinutes: 60,
+    sources: [
+      { id: "never", syncEnabled: true, lastSyncedAt: null },
+      { id: "fresh", syncEnabled: true, lastSyncedAt: new Date("2026-05-08T11:30:00.000Z") },
+      { id: "stale", syncEnabled: true, lastSyncedAt: new Date("2026-05-08T10:30:00.000Z") },
+      { id: "off", syncEnabled: false, lastSyncedAt: null },
+    ],
+  });
+
+  assert.deepEqual(plan.map((source) => source.id), ["never", "stale"]);
 });
 
 test("parseIcsCalendarEvents reads timed and all-day Google calendar events", () => {
