@@ -495,25 +495,26 @@ model TaskSubTask {
 }
 
 model TaskOccurrence {
-  id                String     @id @default(cuid())
-  familyId          String
-  taskTemplateId    String
-  familyMemberId    String
-  titleSnapshot     String
-  dueAt             DateTime?
-  status            TaskStatus @default(open)
-  doneAt            DateTime?
-  confirmedAt       DateTime?
-  confirmedByUserId String?
-  drachmenReward    Int?
-  xpReward          Int?
-  moneyRewardCents  Int?
-  badgeRewardTitle  String?
-  badgeRewardIcon   String?
-  rewardBookedAt    DateTime?
-  note              String?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  id                   String     @id @default(cuid())
+  familyId             String
+  taskTemplateId       String
+  familyMemberId       String
+  titleSnapshot        String
+  dueAt                DateTime?
+  status               TaskStatus @default(open)
+  requiresConfirmation Boolean    @default(true)
+  doneAt               DateTime?
+  confirmedAt          DateTime?
+  confirmedByUserId    String?
+  drachmenReward       Int?
+  xpReward             Int?
+  moneyRewardCents     Int?
+  badgeRewardTitle     String?
+  badgeRewardIcon      String?
+  rewardBookedAt       DateTime?
+  note                 String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
 
   family       Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
   taskTemplate TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)

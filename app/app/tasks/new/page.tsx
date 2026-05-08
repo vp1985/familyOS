@@ -99,10 +99,23 @@ export default async function NewTaskPage({ searchParams }: { searchParams: Prom
               </div>
             </fieldset>
 
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
-              <input type="checkbox" name="requiresConfirmation" defaultChecked className="h-4 w-4 rounded border-slate-300" />
-              Elternbestätigung erforderlich
-            </label>
+            <fieldset className="space-y-3 rounded-3xl bg-slate-50 p-4">
+              <legend className="text-sm font-semibold text-slate-950">Bestätigung</legend>
+              <label className="flex items-start gap-3 rounded-2xl bg-white p-3 text-sm text-slate-700">
+                <input type="radio" name="approvalMode" value="manual" defaultChecked className="mt-1 h-4 w-4 border-slate-300" />
+                <span>
+                  <span className="block font-semibold text-slate-950">Eltern manuell bestätigen</span>
+                  <span className="text-slate-600">Kind markiert erledigt, Belohnung wird erst nach Eltern-Approval gebucht.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-2xl bg-white p-3 text-sm text-slate-700">
+                <input type="radio" name="approvalMode" value="auto" className="mt-1 h-4 w-4 border-slate-300" />
+                <span>
+                  <span className="block font-semibold text-slate-950">Automatisch bestätigen</span>
+                  <span className="text-slate-600">Erledigt zählt sofort als bestätigt und bucht Belohnungen automatisch.</span>
+                </span>
+              </label>
+            </fieldset>
             <Button type="submit" disabled={members.length === 0} className="w-full">Aufgabe speichern</Button>
           </form>
         </CardContent>

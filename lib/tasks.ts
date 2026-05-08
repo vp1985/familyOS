@@ -103,7 +103,7 @@ export function parseTaskTemplateInput(formData: FormData) {
     moneyRewardCents,
     badgeRewardTitle: normalizeOptionalText(formData.get("badgeRewardTitle")),
     badgeRewardIcon: normalizeOptionalText(formData.get("badgeRewardIcon")),
-    requiresConfirmation: formData.get("requiresConfirmation") !== "false",
+    requiresConfirmation: formData.get("approvalMode") !== "auto" && formData.get("requiresConfirmation") !== "false",
   });
 
   if (!parsed.success) return invalid();
@@ -176,6 +176,7 @@ export function generateTaskOccurrences(input: {
   dueTime?: string;
   horizonDays?: number;
   rewards?: RewardFields;
+  requiresConfirmation?: boolean;
 }) {
   const dates = occurrenceDates({
     recurrenceType: input.recurrenceType,
@@ -189,6 +190,7 @@ export function generateTaskOccurrences(input: {
     taskTemplateId: input.taskTemplateId,
     familyMemberId,
     titleSnapshot: input.title,
+    requiresConfirmation: input.requiresConfirmation ?? true,
     dueAt: withTime(date, input.dueTime),
     drachmenReward: input.rewards?.drachmenReward ?? 0,
     xpReward: input.rewards?.xpReward ?? 0,
@@ -196,6 +198,11 @@ export function generateTaskOccurrences(input: {
     badgeRewardTitle: input.rewards?.badgeRewardTitle ?? "",
     badgeRewardIcon: input.rewards?.badgeRewardIcon ?? "🏅",
   })));
+}
+
+export function resolveTaskCompletionStatus(input: { requestedStatus: TaskStatus; requiresConfirmation: boolean }) {
+  if (input.requestedStatus === "done" && !input.requiresConfirmation) return "confirmed";
+  return input.requestedStatus;
 }
 
 export function groupTaskOccurrencesByStatus<T extends { status: string }>(items: T[]) {
@@ -301,6 +308,7 @@ export async function createTaskTemplate(formData: FormData) {
     endsAt: parsed.endsAt,
     dueTime: parsed.dueTime,
     rewards: parsed,
+    requiresConfirmation: parsed.requiresConfirmation,
   });
 
   await db.$transaction(
@@ -328,10 +336,12 @@ export async function updateTaskOccurrenceStatus(occurrenceId: string, status: T
   const occurrence = await db.taskOccurrence.findFirst({ where: { id: occurrenceId, familyId: context.family.id } });
   if (!occurrence) redirect("/app/tasks?error=invalid-task");
 
-  if (status !== "confirmed") {
+  const nextStatus = resolveTaskCompletionStatus({ requestedStatus: status, requiresConfirmation: occurrence.requiresConfirmation });
+
+  if (nextStatus !== "confirmed") {
     await db.taskOccurrence.update({
       where: { id: occurrence.id },
-      data: { status, doneAt: status === "done" ? new Date() : occurrence.doneAt },
+      data: { status: nextStatus, doneAt: nextStatus === "done" ? new Date() : occurrence.doneAt },
     });
     return;
   }

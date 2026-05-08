@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   buildTaskRewardOperations,
@@ -6,6 +7,7 @@ import {
   groupTaskOccurrencesByStatus,
   parseTaskTemplateInput,
   parseTaskStatusInput,
+  resolveTaskCompletionStatus,
 } from "@/lib/tasks";
 
 function fd(entries: Record<string, string | string[]>) {
@@ -130,6 +132,49 @@ test("buildTaskRewardOperations creates idempotent reward descriptors for confir
   );
 
   assert.deepEqual(buildTaskRewardOperations({ occurrenceId: "occ-1", familyMemberId: "m1", title: "Zimmer", alreadyBooked: true }), {});
+});
+
+test("parseTaskTemplateInput supports automatic approval mode", () => {
+  const result = parseTaskTemplateInput(
+    fd({
+      title: "  Tisch abräumen  ",
+      category: "haushalt",
+      familyMemberId: "member-1",
+      startsAt: "2026-05-11",
+      approvalMode: "auto",
+    }),
+  );
+
+  assert.equal("success" in result, false);
+  if ("success" in result) return;
+  assert.equal(result.requiresConfirmation, false);
+});
+
+test("generateTaskOccurrences snapshots whether parent confirmation is required", () => {
+  const [occurrence] = generateTaskOccurrences({
+    taskTemplateId: "task-1",
+    title: "Tisch abräumen",
+    familyMemberIds: ["m1"],
+    recurrenceType: "once",
+    weekdays: [],
+    startsAt: new Date("2026-05-11T00:00:00.000Z"),
+    requiresConfirmation: false,
+  });
+
+  assert.equal(occurrence.requiresConfirmation, false);
+});
+
+test("resolveTaskCompletionStatus auto-confirms tasks that need no parent approval", () => {
+  assert.equal(resolveTaskCompletionStatus({ requestedStatus: "done", requiresConfirmation: true }), "done");
+  assert.equal(resolveTaskCompletionStatus({ requestedStatus: "done", requiresConfirmation: false }), "confirmed");
+  assert.equal(resolveTaskCompletionStatus({ requestedStatus: "in_progress", requiresConfirmation: false }), "in_progress");
+});
+
+test("new task form exposes manual and automatic approval choices", () => {
+  const source = readFileSync("app/app/tasks/new/page.tsx", "utf8");
+  assert.match(source, /approvalMode/);
+  assert.match(source, /Eltern manuell bestätigen/);
+  assert.match(source, /Automatisch bestätigen/);
 });
 
 test("parseTaskStatusInput accepts only known task status transitions", () => {
