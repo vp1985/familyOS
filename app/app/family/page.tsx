@@ -46,7 +46,7 @@ export default async function FamilyPage({
                 <option value="other">Weitere Person</option>
               </select>
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <FormField label="Icon" name="icon" placeholder="🧒" maxLength={4} />
               <FormField label="Farbe" name="color" placeholder="emerald" />
             </div>

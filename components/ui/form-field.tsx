@@ -10,12 +10,12 @@ export function FormField({ label, hint, className, id, ...props }: FormFieldPro
   const fieldId = id ?? props.name ?? label.toLowerCase().replaceAll(" ", "-");
 
   return (
-    <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor={fieldId}>
+    <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-800" htmlFor={fieldId}>
       {label}
       <input
         id={fieldId}
         className={cn(
-          "min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100",
+          "min-h-11 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100",
           className,
         )}
         {...props}
