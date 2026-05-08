@@ -2,11 +2,16 @@ import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
+import { getActiveConsequencesOverview } from "@/lib/consequences";
 import { formatCents, getChildFinanceOverview } from "@/lib/finances";
 import { getFamilyMembers } from "@/lib/family-members";
 
 export default async function AppDashboardPage() {
-  const [{ context, members }, finance] = await Promise.all([getFamilyMembers(), getChildFinanceOverview()]);
+  const [{ context, members }, finance, activeConsequences] = await Promise.all([
+    getFamilyMembers(),
+    getChildFinanceOverview(),
+    getActiveConsequencesOverview(),
+  ]);
   const childCount = members.filter((member) => member.role === "child").length;
 
   return (
@@ -15,19 +20,36 @@ export default async function AppDashboardPage() {
         <p className="text-sm text-slate-300">{context.family.name}</p>
         <h2 className="mt-2 text-2xl font-bold">Hallo {context.user.name}.</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          Sprint 3 ist aktiv: Kinderkonten, einfache Geldbewegungen und Verlauf sind vorbereitet.
+          Sprint 6 ist aktiv: Regeln, Konsequenzen und aktive Folgen im Dashboard sind vorbereitet.
         </p>
       </section>
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Kinder" value={childCount.toString()} helper="Profile angelegt" />
-        <StatCard label="Kinder-Geld" value={formatCents(finance.totalBalanceCents)} helper="gesamt" />
+        <StatCard label="Aktive Folgen" value={activeConsequences.consequences.length.toString()} helper="offen" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Familie" value={members.length.toString()} helper="Personen gesamt" />
-        <StatCard label="Bewegungen" value={finance.transactions.length.toString()} helper="letzte Einträge" />
+        <StatCard label="Kinder-Geld" value={formatCents(finance.totalBalanceCents)} helper="gesamt" />
       </div>
+
+      {activeConsequences.consequences.length > 0 ? (
+        <section className="space-y-3 rounded-3xl bg-amber-50 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-amber-950">Aktive Konsequenzen</h3>
+            <Link href="/app/consequences" className="text-sm font-semibold text-amber-800">Alle</Link>
+          </div>
+          <div className="grid gap-2">
+            {activeConsequences.consequences.map((consequence) => (
+              <div key={consequence.id} className="rounded-2xl bg-white px-4 py-3 text-sm shadow-sm">
+                <p className="font-semibold text-slate-950">{consequence.title}</p>
+                <p className="text-slate-600">für {consequence.member.name}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {members.length > 0 ? (
         <section className="space-y-3">

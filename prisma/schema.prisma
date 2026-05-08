@@ -37,6 +37,12 @@ enum ProjectExpenseStatus {
   voided
 }
 
+enum ConsequenceStatus {
+  active
+  done
+  cancelled
+}
+
 model User {
   id                       String             @id @default(cuid())
   email                    String             @unique
@@ -51,6 +57,7 @@ model User {
   createdProjectExpenses   ProjectExpense[]
   createdRules             Rule[]
   createdRuleEvents        RuleEvent[]
+  createdConsequences      Consequence[]
 }
 
 model Session {
@@ -80,6 +87,7 @@ model Family {
   projectExpenses   ProjectExpense[]
   rules             Rule[]
   ruleEvents        RuleEvent[]
+  consequences      Consequence[]
 }
 
 model FamilyUser {
@@ -116,6 +124,7 @@ model FamilyMember {
   paidProjectExpenses  ProjectExpense[]      @relation("ProjectExpensePayer")
   projectExpenseShares ProjectExpenseShare[]
   ruleEvents           RuleEvent[]
+  consequences         Consequence[]
 
   @@index([familyId])
 }
@@ -253,12 +262,38 @@ model RuleEvent {
   createdByUserId String
   createdAt       DateTime @default(now())
 
-  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  rule      Rule         @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
-  createdBy User         @relation(fields: [createdByUserId], references: [id])
+  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  rule         Rule          @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  member       FamilyMember  @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation(fields: [createdByUserId], references: [id])
+  consequences Consequence[]
 
   @@index([familyId, occurredAt])
   @@index([ruleId, occurredAt])
   @@index([familyMemberId, occurredAt])
+}
+
+model Consequence {
+  id              String            @id @default(cuid())
+  familyId        String
+  familyMemberId  String
+  ruleEventId     String?
+  title           String
+  description     String?
+  status          ConsequenceStatus @default(active)
+  startDate       DateTime          @default(now())
+  endDate         DateTime?
+  createdByUserId String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  ruleEvent RuleEvent?   @relation(fields: [ruleEventId], references: [id], onDelete: SetNull)
+  createdBy User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, status])
+  @@index([familyMemberId, status])
+  @@index([ruleEventId])
+  @@index([createdByUserId])
 }
