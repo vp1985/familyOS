@@ -49,6 +49,8 @@ model User {
   createdMoneyTransactions MoneyTransaction[]
   createdProjects          Project[]
   createdProjectExpenses   ProjectExpense[]
+  createdRules             Rule[]
+  createdRuleEvents        RuleEvent[]
 }
 
 model Session {
@@ -76,6 +78,8 @@ model Family {
   moneyTransactions MoneyTransaction[]
   projects          Project[]
   projectExpenses   ProjectExpense[]
+  rules             Rule[]
+  ruleEvents        RuleEvent[]
 }
 
 model FamilyUser {
@@ -111,6 +115,7 @@ model FamilyMember {
   projectParticipants  ProjectParticipant[]
   paidProjectExpenses  ProjectExpense[]      @relation("ProjectExpensePayer")
   projectExpenseShares ProjectExpenseShare[]
+  ruleEvents           RuleEvent[]
 
   @@index([familyId])
 }
@@ -217,4 +222,43 @@ model ProjectExpenseShare {
 
   @@unique([expenseId, familyMemberId])
   @@index([familyMemberId])
+}
+
+model Rule {
+  id              String   @id @default(cuid())
+  familyId        String
+  title           String
+  description     String?
+  category        String
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  family    Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User        @relation(fields: [createdByUserId], references: [id])
+  events    RuleEvent[]
+
+  @@index([familyId, isActive])
+  @@index([createdByUserId])
+}
+
+model RuleEvent {
+  id              String   @id @default(cuid())
+  familyId        String
+  ruleId          String
+  familyMemberId  String
+  note            String
+  occurredAt      DateTime @default(now())
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  rule      Rule         @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, occurredAt])
+  @@index([ruleId, occurredAt])
+  @@index([familyMemberId, occurredAt])
 }
