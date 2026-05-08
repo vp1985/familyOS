@@ -15,7 +15,7 @@ export default async function AppDashboardPage() {
         <p className="mt-3 text-sm leading-6 text-slate-300">
           Heute wichtig: {summary.todayImportantCount} offene Punkte aus Aufgaben, Regeln, Folgen und Projekten.
         </p>
-        <div className="mt-4 grid grid-cols-5 gap-2 text-center text-xs">
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-6">
           <Link href="/app/finance" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
             💶<span className="mt-1 block">Geld</span>
           </Link>
@@ -24,6 +24,9 @@ export default async function AppDashboardPage() {
           </Link>
           <Link href="/app/tasks" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
             ✅<span className="mt-1 block">Aufgaben</span>
+          </Link>
+          <Link href="/app/tools" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
+            🧰<span className="mt-1 block">Tools</span>
           </Link>
           <Link href="/app/consequences" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
             ⏳<span className="mt-1 block">Folgen</span>
