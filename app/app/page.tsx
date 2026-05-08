@@ -2,10 +2,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { formatActivityLine, getDashboardData } from "@/lib/dashboard";
-import { formatCents } from "@/lib/finances";
+
+function formatShortDateTime(date: Date) {
+  return new Intl.DateTimeFormat("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }).format(date);
+}
 
 export default async function AppDashboardPage() {
-  const { context, members, activeConsequences, badges, pointLeaders, summary } = await getDashboardData();
+  const { context, members, activeConsequences, badges, pointLeaders, summary, agenda } = await getDashboardData();
+  const todayImportantCount = summary.todayImportantCount + agenda.pendingConfirmations.length;
 
   return (
     <div className="space-y-5">
@@ -13,7 +17,7 @@ export default async function AppDashboardPage() {
         <p className="text-sm text-slate-300">{context.family.name}</p>
         <h2 className="mt-2 text-2xl font-bold">Guten Überblick, {context.user.name}.</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          Heute wichtig: {summary.todayImportantCount} offene Punkte aus Aufgaben, Regeln, Folgen und Projekten.
+          Heute wichtig: {todayImportantCount} offene Punkte. {agenda.nextEvent ? `Nächster Termin: ${agenda.nextEvent.title}.` : "Kein Termin mehr heute."}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs sm:grid-cols-6">
           <Link href="/app/finance" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
@@ -38,10 +42,58 @@ export default async function AppDashboardPage() {
       </section>
 
       <section className="grid grid-cols-2 gap-3">
-        <StatCard label="Heute wichtig" value={summary.todayImportantCount.toString()} helper="offene Themen" />
-        <StatCard label="Familiengeld" value={formatCents(summary.stats.totalFinanceCents)} helper="gesamt" />
+        <StatCard label="Heute wichtig" value={todayImportantCount.toString()} helper="offene Themen" />
+        <StatCard label="Bestätigung" value={agenda.pendingConfirmations.length.toString()} helper="wartet auf Eltern" />
+        <StatCard label="Heute Aufgaben" value={agenda.todayTasks.length.toString()} helper="fällig" />
         <StatCard label="Punkte" value={summary.stats.totalPoints.toString()} helper="gesamt" />
-        <StatCard label="Kinder" value={summary.stats.children.toString()} helper={`${summary.stats.familyMembers} Personen`} />
+      </section>
+
+      <section className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tagesmodus</p>
+            <h3 className="text-lg font-semibold text-slate-950">Heute zuerst</h3>
+          </div>
+          <Button asChild className="min-h-10 px-3 text-xs">
+            <Link href="/app/tasks">Aufgaben</Link>
+          </Button>
+        </div>
+
+        {agenda.nextEvent ? (
+          <div className="rounded-2xl bg-indigo-50 px-4 py-3 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Nächster Termin</p>
+            <p className="mt-1 font-semibold text-slate-950">{agenda.nextEvent.title}</p>
+            <p className="text-slate-600">{agenda.nextEvent.memberName} · {formatShortDateTime(agenda.nextEvent.startsAt)}</p>
+          </div>
+        ) : null}
+
+        {agenda.pendingConfirmations.length > 0 ? (
+          <div className="grid gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Zu bestätigen</p>
+            {agenda.pendingConfirmations.map((item) => (
+              <div key={item.id} className="flex items-center justify-between rounded-2xl bg-amber-50 px-4 py-3 text-sm">
+                <span className="font-semibold text-slate-950">{item.title}</span>
+                <span className="text-xs text-slate-600">{item.memberName}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {agenda.todayTasks.length > 0 ? (
+          <div className="grid gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Fällige Aufgaben</p>
+            {agenda.todayTasks.map((item) => (
+              <div key={item.id} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                <span className="font-semibold text-slate-950">{item.title}</span>
+                <span className="text-xs text-slate-600">{item.memberName}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {agenda.totalActionCount === 0 && !agenda.nextEvent ? (
+          <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">Heute ist nichts Dringendes offen.</p>
+        ) : null}
       </section>
 
       <section className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">

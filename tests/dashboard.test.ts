@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildDashboardSummary,
+  buildTodayAgenda,
   formatActivityLine,
   sortPointLeaders,
 } from "../lib/dashboard";
@@ -51,6 +52,28 @@ test("sortPointLeaders sorts by points descending and then by name", () => {
   ]);
 
   assert.deepEqual(leaders.map((leader) => `${leader.member.name}:${leader.points}`), ["Mia:20", "Anna:10", "Noah:10"]);
+});
+
+test("buildTodayAgenda groups urgent tasks, confirmations and next calendar events", () => {
+  const agenda = buildTodayAgenda({
+    now: new Date("2026-05-08T09:00:00.000Z"),
+    openTasks: [
+      { id: "t2", title: "Müll raus", memberName: "Noah", dueAt: new Date("2026-05-08T18:00:00.000Z") },
+      { id: "t1", title: "Schultasche", memberName: "Mia", dueAt: new Date("2026-05-08T07:00:00.000Z") },
+    ],
+    pendingConfirmations: [
+      { id: "c1", title: "Zimmer aufgeräumt", memberName: "Mia", doneAt: new Date("2026-05-08T08:30:00.000Z") },
+    ],
+    upcomingEvents: [
+      { id: "e1", title: "Mathe", memberName: "Mia", startsAt: new Date("2026-05-08T10:00:00.000Z") },
+      { id: "e2", title: "Training", memberName: "Noah", startsAt: new Date("2026-05-09T16:00:00.000Z") },
+    ],
+  });
+
+  assert.deepEqual(agenda.todayTasks.map((item) => item.title), ["Schultasche", "Müll raus"]);
+  assert.deepEqual(agenda.pendingConfirmations.map((item) => item.title), ["Zimmer aufgeräumt"]);
+  assert.equal(agenda.nextEvent?.title, "Mathe");
+  assert.equal(agenda.totalActionCount, 3);
 });
 
 test("formatActivityLine renders German money and point activity labels", () => {

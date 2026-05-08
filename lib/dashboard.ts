@@ -34,11 +34,62 @@ export type PointLeader = {
   points: number;
 };
 
+export type DashboardTaskItem = {
+  id: string;
+  title: string;
+  memberName: string;
+  dueAt: Date | null;
+};
+
+export type DashboardConfirmationItem = {
+  id: string;
+  title: string;
+  memberName: string;
+  doneAt: Date | null;
+};
+
+export type DashboardCalendarItem = {
+  id: string;
+  title: string;
+  memberName: string;
+  startsAt: Date;
+};
+
 export function sortPointLeaders(leaders: PointLeader[]) {
   return [...leaders].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     return a.member.name.localeCompare(b.member.name, "de");
   });
+}
+
+export function buildTodayAgenda(input: {
+  now: Date;
+  openTasks: DashboardTaskItem[];
+  pendingConfirmations: DashboardConfirmationItem[];
+  upcomingEvents: DashboardCalendarItem[];
+}) {
+  const todayKey = input.now.toISOString().slice(0, 10);
+  const todayTasks = [...input.openTasks]
+    .filter((task) => !task.dueAt || task.dueAt.toISOString().slice(0, 10) <= todayKey)
+    .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
+    .slice(0, 5);
+
+  const pendingConfirmations = [...input.pendingConfirmations]
+    .sort((a, b) => (b.doneAt?.getTime() ?? 0) - (a.doneAt?.getTime() ?? 0))
+    .slice(0, 5);
+
+  const upcomingEvents = [...input.upcomingEvents]
+    .filter((event) => event.startsAt >= input.now)
+    .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+    .slice(0, 5);
+
+  return {
+    todayTasks,
+    pendingConfirmations,
+    upcomingEvents,
+    nextEvent: upcomingEvents[0] ?? null,
+    totalActionCount: todayTasks.length + pendingConfirmations.length,
+  };
 }
 
 function signedPoints(points: number) {
@@ -126,7 +177,25 @@ export async function getDashboardData() {
   const today = new Date();
   today.setUTCHours(23, 59, 59, 999);
 
-  const [members, financeAccounts, activeConsequences, activeProjectCount, activeRuleCount, todayOpenTaskCount, pointTransactions, recentMoneyTransactions, recentPointTransactions, badges] = await Promise.all([
+  const tomorrow = new Date(today);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(0, 0, 0, 0);
+
+  const [
+    members,
+    financeAccounts,
+    activeConsequences,
+    activeProjectCount,
+    activeRuleCount,
+    todayOpenTaskCount,
+    openTasks,
+    pendingConfirmations,
+    upcomingEvents,
+    pointTransactions,
+    recentMoneyTransactions,
+    recentPointTransactions,
+    badges,
+  ] = await Promise.all([
     db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] }),
     db.financeAccount.findMany({ where: { familyId: context.family.id } }),
     db.consequence.findMany({
@@ -138,6 +207,24 @@ export async function getDashboardData() {
     db.project.count({ where: { familyId: context.family.id, status: "active" } }),
     db.rule.count({ where: { familyId: context.family.id, isActive: true } }),
     db.taskOccurrence.count({ where: { familyId: context.family.id, status: { in: ["open", "in_progress"] }, dueAt: { lte: today } } }),
+    db.taskOccurrence.findMany({
+      where: { familyId: context.family.id, status: { in: ["open", "in_progress"] }, dueAt: { lte: today } },
+      include: { member: true },
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      take: 5,
+    }),
+    db.taskOccurrence.findMany({
+      where: { familyId: context.family.id, status: "done", confirmedAt: null },
+      include: { member: true },
+      orderBy: [{ doneAt: "desc" }, { updatedAt: "desc" }],
+      take: 5,
+    }),
+    db.calendarEvent.findMany({
+      where: { familyId: context.family.id, startsAt: { gte: new Date(), lt: tomorrow } },
+      include: { member: true },
+      orderBy: { startsAt: "asc" },
+      take: 5,
+    }),
     db.pointTransaction.findMany({ where: { familyId: context.family.id } }),
     db.moneyTransaction.findMany({
       where: { familyId: context.family.id },
@@ -194,6 +281,13 @@ export async function getDashboardData() {
     })),
   });
 
+  const agenda = buildTodayAgenda({
+    now: new Date(),
+    openTasks: openTasks.map((task) => ({ id: task.id, title: task.titleSnapshot, memberName: task.member.name, dueAt: task.dueAt })),
+    pendingConfirmations: pendingConfirmations.map((task) => ({ id: task.id, title: task.titleSnapshot, memberName: task.member.name, doneAt: task.doneAt })),
+    upcomingEvents: upcomingEvents.map((event) => ({ id: event.id, title: event.title, memberName: event.member?.name ?? "Familie", startsAt: event.startsAt })),
+  });
+
   return {
     context,
     members,
@@ -201,5 +295,6 @@ export async function getDashboardData() {
     badges,
     pointLeaders,
     summary,
+    agenda,
   };
 }
