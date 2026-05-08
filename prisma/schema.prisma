@@ -58,6 +58,10 @@ model User {
   createdRules             Rule[]
   createdRuleEvents        RuleEvent[]
   createdConsequences      Consequence[]
+  createdPointTransactions PointTransaction[]
+  createdRewards           Reward[]
+  createdRewardRedemptions RewardRedemption[]
+  createdBadgeAssignments  BadgeAssignment[]
 }
 
 model Session {
@@ -88,6 +92,10 @@ model Family {
   rules             Rule[]
   ruleEvents        RuleEvent[]
   consequences      Consequence[]
+  pointTransactions PointTransaction[]
+  rewards           Reward[]
+  rewardRedemptions RewardRedemption[]
+  badgeAssignments  BadgeAssignment[]
 }
 
 model FamilyUser {
@@ -125,6 +133,9 @@ model FamilyMember {
   projectExpenseShares ProjectExpenseShare[]
   ruleEvents           RuleEvent[]
   consequences         Consequence[]
+  pointTransactions    PointTransaction[]
+  rewardRedemptions    RewardRedemption[]
+  badgeAssignments     BadgeAssignment[]
 
   @@index([familyId])
 }
@@ -295,5 +306,81 @@ model Consequence {
   @@index([familyId, status])
   @@index([familyMemberId, status])
   @@index([ruleEventId])
+  @@index([createdByUserId])
+}
+
+model PointTransaction {
+  id              String   @id @default(cuid())
+  familyId        String
+  familyMemberId  String
+  points          Int
+  reason          String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, createdAt])
+  @@index([familyMemberId, createdAt])
+  @@index([createdByUserId])
+}
+
+model Reward {
+  id              String   @id @default(cuid())
+  familyId        String
+  title           String
+  description     String?
+  costPoints      Int
+  isActive        Boolean  @default(true)
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  family      Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy   User               @relation(fields: [createdByUserId], references: [id])
+  redemptions RewardRedemption[]
+
+  @@index([familyId, isActive])
+  @@index([createdByUserId])
+}
+
+model RewardRedemption {
+  id              String   @id @default(cuid())
+  familyId        String
+  rewardId        String
+  familyMemberId  String
+  costPoints      Int
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  reward    Reward       @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, createdAt])
+  @@index([rewardId])
+  @@index([familyMemberId, createdAt])
+  @@index([createdByUserId])
+}
+
+model BadgeAssignment {
+  id              String   @id @default(cuid())
+  familyId        String
+  familyMemberId  String
+  title           String
+  icon            String   @default("🏅")
+  description     String?
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, createdAt])
+  @@index([familyMemberId, createdAt])
   @@index([createdByUserId])
 }

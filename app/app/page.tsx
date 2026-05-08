@@ -3,14 +3,16 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { getActiveConsequencesOverview } from "@/lib/consequences";
+import { getGamificationDashboardData } from "@/lib/gamification";
 import { formatCents, getChildFinanceOverview } from "@/lib/finances";
 import { getFamilyMembers } from "@/lib/family-members";
 
 export default async function AppDashboardPage() {
-  const [{ context, members }, finance, activeConsequences] = await Promise.all([
+  const [{ context, members }, finance, activeConsequences, gamification] = await Promise.all([
     getFamilyMembers(),
     getChildFinanceOverview(),
     getActiveConsequencesOverview(),
+    getGamificationDashboardData(),
   ]);
   const childCount = members.filter((member) => member.role === "child").length;
 
@@ -20,7 +22,7 @@ export default async function AppDashboardPage() {
         <p className="text-sm text-slate-300">{context.family.name}</p>
         <h2 className="mt-2 text-2xl font-bold">Hallo {context.user.name}.</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">
-          Sprint 6 ist aktiv: Regeln, Konsequenzen und aktive Folgen im Dashboard sind vorbereitet.
+          Sprint 7 ist aktiv: Punkte, Belohnungen und Badges sind vorbereitet.
         </p>
       </section>
 
@@ -31,7 +33,7 @@ export default async function AppDashboardPage() {
 
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Familie" value={members.length.toString()} helper="Personen gesamt" />
-        <StatCard label="Kinder-Geld" value={formatCents(finance.totalBalanceCents)} helper="gesamt" />
+        <StatCard label="Punkte" value={gamification.totalPoints.toString()} helper="gesamt" />
       </div>
 
       {activeConsequences.consequences.length > 0 ? (

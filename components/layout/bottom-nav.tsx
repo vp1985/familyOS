@@ -7,13 +7,14 @@ const items = [
   { href: "/app/projects", label: "Projekte", icon: "🧾" },
   { href: "/app/rules", label: "Regeln", icon: "📏" },
   { href: "/app/consequences", label: "Folgen", icon: "⏳" },
+  { href: "/app/rewards", label: "Punkte", icon: "⭐" },
   { href: "/app/settings", label: "Setup", icon: "⚙️" },
 ];
 
 export function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 backdrop-blur">
-      <div className="mx-auto grid max-w-md grid-cols-7 gap-1">
+      <div className="mx-auto grid max-w-md grid-cols-8 gap-1">
         {items.map((item) => (
           <Link
             key={item.href}
