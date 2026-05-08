@@ -27,6 +27,9 @@ export default async function AppDashboardPage() {
           <Link href="/app/calendar" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
             🗓️<span className="mt-1 block">Plan</span>
           </Link>
+          <Link href="/app/kids" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
+            🧒<span className="mt-1 block">Kids</span>
+          </Link>
           <Link href="/app/tasks" className="rounded-2xl bg-white/10 px-2 py-3 font-semibold backdrop-blur hover:bg-white/15">
             ✅<span className="mt-1 block">Aufgaben</span>
           </Link>

@@ -55,6 +55,85 @@ export type DashboardCalendarItem = {
   startsAt: Date;
 };
 
+export type KidsTaskInput = {
+  id: string;
+  title: string;
+  familyMemberId: string;
+  dueAt: Date | null;
+  status: string;
+  drachmenReward: number | null;
+  xpReward: number | null;
+  moneyRewardCents: number | null;
+  badgeRewardTitle: string | null;
+};
+
+export type KidsMemberInput = {
+  id: string;
+  name: string;
+  icon?: string | null;
+};
+
+export function buildKidsTaskView(input: { members: KidsMemberInput[]; tasks: KidsTaskInput[]; now: Date }) {
+  const todayKey = input.now.toISOString().slice(0, 10);
+  const visibleTasks = input.tasks
+    .filter((task) => ["open", "in_progress"].includes(task.status))
+    .filter((task) => !task.dueAt || task.dueAt.toISOString().slice(0, 10) <= todayKey)
+    .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0));
+
+  const children = input.members.map((member) => ({
+    ...member,
+    tasks: visibleTasks
+      .filter((task) => task.familyMemberId === member.id)
+      .map((task) => ({
+        ...task,
+        rewardLabels: [
+          task.drachmenReward ? `${task.drachmenReward} Drachmen` : null,
+          task.xpReward ? `${task.xpReward} XP` : null,
+          task.moneyRewardCents ? formatCents(task.moneyRewardCents) : null,
+          task.badgeRewardTitle ? `Badge ${task.badgeRewardTitle}` : null,
+        ].filter((label): label is string => Boolean(label)),
+      })),
+  }));
+
+  return {
+    children,
+    totalOpenTasks: children.reduce((sum, child) => sum + child.tasks.length, 0),
+  };
+}
+
+export async function getKidsTaskData() {
+  const context = await requireFamilyContext();
+  const today = new Date();
+  today.setUTCHours(23, 59, 59, 999);
+
+  const [members, tasks] = await Promise.all([
+    db.familyMember.findMany({ where: { familyId: context.family.id, role: "child" }, orderBy: [{ createdAt: "asc" }] }),
+    db.taskOccurrence.findMany({
+      where: { familyId: context.family.id, status: { in: ["open", "in_progress"] }, dueAt: { lte: today } },
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+    }),
+  ]);
+
+  return {
+    context,
+    view: buildKidsTaskView({
+      members,
+      tasks: tasks.map((task) => ({
+        id: task.id,
+        title: task.titleSnapshot,
+        familyMemberId: task.familyMemberId,
+        dueAt: task.dueAt,
+        status: task.status,
+        drachmenReward: task.drachmenReward,
+        xpReward: task.xpReward,
+        moneyRewardCents: task.moneyRewardCents,
+        badgeRewardTitle: task.badgeRewardTitle,
+      })),
+      now: new Date(),
+    }),
+  };
+}
+
 export function sortPointLeaders(leaders: PointLeader[]) {
   return [...leaders].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;

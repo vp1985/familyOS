@@ -5,6 +5,7 @@ const items = [
   { href: "/app/family", label: "Familie", icon: "👨‍👩‍👧" },
   { href: "/app/finance", label: "Geld", icon: "💶" },
   { href: "/app/calendar", label: "Plan", icon: "🗓️" },
+  { href: "/app/kids", label: "Kids", icon: "🧒" },
   { href: "/app/tasks", label: "Aufgaben", icon: "✅" },
   { href: "/app/tools", label: "Tools", icon: "🧰" },
   { href: "/app/projects", label: "Projekte", icon: "🧾" },

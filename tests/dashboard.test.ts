@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   buildDashboardSummary,
+  buildKidsTaskView,
   buildTodayAgenda,
   formatActivityLine,
   sortPointLeaders,
@@ -74,6 +76,45 @@ test("buildTodayAgenda groups urgent tasks, confirmations and next calendar even
   assert.deepEqual(agenda.pendingConfirmations.map((item) => item.title), ["Zimmer aufgeräumt"]);
   assert.equal(agenda.nextEvent?.title, "Mathe");
   assert.equal(agenda.totalActionCount, 3);
+});
+
+test("buildKidsTaskView groups child tasks and shows possible rewards without admin items", () => {
+  const view = buildKidsTaskView({
+    members: [
+      { id: "m1", name: "Mia", icon: "🦁" },
+      { id: "m2", name: "Noah", icon: null },
+    ],
+    tasks: [
+      { id: "t2", title: "Tisch decken", familyMemberId: "m1", dueAt: new Date("2026-05-08T18:00:00.000Z"), status: "open", drachmenReward: 10, xpReward: 5, moneyRewardCents: null, badgeRewardTitle: null },
+      { id: "t1", title: "Schultasche", familyMemberId: "m1", dueAt: new Date("2026-05-08T07:00:00.000Z"), status: "in_progress", drachmenReward: null, xpReward: null, moneyRewardCents: 150, badgeRewardTitle: "Super" },
+      { id: "done", title: "Schon erledigt", familyMemberId: "m1", dueAt: new Date("2026-05-08T08:00:00.000Z"), status: "done", drachmenReward: 1, xpReward: null, moneyRewardCents: null, badgeRewardTitle: null },
+      { id: "later", title: "Morgen", familyMemberId: "m2", dueAt: new Date("2026-05-09T08:00:00.000Z"), status: "open", drachmenReward: null, xpReward: null, moneyRewardCents: null, badgeRewardTitle: null },
+    ],
+    now: new Date("2026-05-08T09:00:00.000Z"),
+  });
+
+  assert.equal(view.totalOpenTasks, 2);
+  assert.deepEqual(view.children.map((child) => child.name), ["Mia", "Noah"]);
+  assert.deepEqual(view.children[0].tasks.map((task) => task.title), ["Schultasche", "Tisch decken"]);
+  assert.deepEqual(view.children[0].tasks[0].rewardLabels, ["1,50 €", "Badge Super"]);
+  assert.deepEqual(view.children[0].tasks[1].rewardLabels, ["10 Drachmen", "5 XP"]);
+  assert.deepEqual(view.children[1].tasks, []);
+});
+
+test("kids route exposes a child-only action surface", () => {
+  const source = readFileSync("app/app/kids/page.tsx", "utf8");
+
+  assert.match(source, /Meine Aufgaben heute|Kinder-Modus/);
+  assert.match(source, /Ich hab/);
+  assert.doesNotMatch(source, /Regeln|Setup|Admin/);
+});
+
+test("dashboard and bottom nav link to kids mode", () => {
+  const dashboardSource = readFileSync("app/app/page.tsx", "utf8");
+  const navSource = readFileSync("components/layout/bottom-nav.tsx", "utf8");
+
+  assert.match(dashboardSource, /\/app\/kids/);
+  assert.match(navSource, /\/app\/kids/);
 });
 
 test("formatActivityLine renders German money and point activity labels", () => {
