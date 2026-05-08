@@ -13,16 +13,17 @@ const items = [
 
 export function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 px-3 pb-3 pt-2 backdrop-blur">
-      <div className="mx-auto grid max-w-md grid-cols-8 gap-1">
+    <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 px-2 pb-3 pt-2 backdrop-blur">
+      <div className="mx-auto flex max-w-md gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
         {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className="flex flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+            aria-label={item.label}
+            className="flex min-w-[4.25rem] flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[0.68rem] font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-950"
           >
             <span aria-hidden="true" className="text-lg">{item.icon}</span>
-            <span>{item.label}</span>
+            <span className="max-w-full truncate">{item.label}</span>
           </Link>
         ))}
       </div>
