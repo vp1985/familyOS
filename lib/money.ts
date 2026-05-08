@@ -1,4 +1,4 @@
-export type MoneyTransactionType = "allowance" | "loan" | "repayment" | "adjustment";
+export type MoneyTransactionType = "allowance" | "loan" | "repayment" | "adjustment" | "reward";
 
 export function parseEuroToCents(value: string): number | null {
   const cleaned = value.trim().replace(/€/g, "").trim().replace(",", ".");

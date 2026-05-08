@@ -93,11 +93,12 @@ export function buildDashboardSummary(input: {
   activeConsequences: DashboardConsequence[];
   activeProjectCount: number;
   activeRuleCount: number;
+  todayOpenTaskCount: number;
   totalPoints: number;
   recentMoneyTransactions: DashboardMoneyActivity[];
   recentPointTransactions: DashboardPointActivity[];
 }) {
-  const todayImportantCount = input.activeConsequences.length + input.activeProjectCount + input.activeRuleCount;
+  const todayImportantCount = input.activeConsequences.length + input.activeProjectCount + input.activeRuleCount + (input.todayOpenTaskCount ?? 0);
 
   return {
     todayImportantCount,
@@ -108,6 +109,7 @@ export function buildDashboardSummary(input: {
       activeConsequences: input.activeConsequences.length,
       activeProjects: input.activeProjectCount,
       activeRules: input.activeRuleCount,
+      ...(input.todayOpenTaskCount !== undefined ? { todayOpenTasks: input.todayOpenTaskCount } : {}),
       totalPoints: input.totalPoints,
     },
     recentActivity: interleaveRecentActivities({
@@ -121,7 +123,10 @@ export function buildDashboardSummary(input: {
 export async function getDashboardData() {
   const context = await requireFamilyContext();
 
-  const [members, financeAccounts, activeConsequences, activeProjectCount, activeRuleCount, pointTransactions, recentMoneyTransactions, recentPointTransactions, badges] = await Promise.all([
+  const today = new Date();
+  today.setUTCHours(23, 59, 59, 999);
+
+  const [members, financeAccounts, activeConsequences, activeProjectCount, activeRuleCount, todayOpenTaskCount, pointTransactions, recentMoneyTransactions, recentPointTransactions, badges] = await Promise.all([
     db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] }),
     db.financeAccount.findMany({ where: { familyId: context.family.id } }),
     db.consequence.findMany({
@@ -132,6 +137,7 @@ export async function getDashboardData() {
     }),
     db.project.count({ where: { familyId: context.family.id, status: "active" } }),
     db.rule.count({ where: { familyId: context.family.id, isActive: true } }),
+    db.taskOccurrence.count({ where: { familyId: context.family.id, status: { in: ["open", "in_progress"] }, dueAt: { lte: today } } }),
     db.pointTransaction.findMany({ where: { familyId: context.family.id } }),
     db.moneyTransaction.findMany({
       where: { familyId: context.family.id },
@@ -172,6 +178,7 @@ export async function getDashboardData() {
     activeConsequences: activeConsequences.map((consequence) => ({ id: consequence.id, title: consequence.title, memberName: consequence.member.name })),
     activeProjectCount,
     activeRuleCount,
+    todayOpenTaskCount,
     totalPoints,
     recentMoneyTransactions: recentMoneyTransactions.map((transaction) => ({
       id: transaction.id,

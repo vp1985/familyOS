@@ -17,6 +17,7 @@ const typeLabels: Record<PrismaMoneyTransactionType, string> = {
   loan: "Leihe/Ausgabe",
   repayment: "Rückzahlung",
   adjustment: "Korrektur",
+  reward: "Aufgabenbonus",
 };
 
 export function moneyTransactionLabel(type: PrismaMoneyTransactionType) {

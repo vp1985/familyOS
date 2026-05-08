@@ -24,6 +24,24 @@ enum MoneyTransactionType {
   loan
   repayment
   adjustment
+  reward
+}
+
+enum TaskStatus {
+  open
+  in_progress
+  done
+  confirmed
+  skipped
+  missed
+}
+
+enum TaskRecurrenceType {
+  once
+  daily
+  weekly
+  monthly
+  weekdays
 }
 
 enum ProjectStatus {
@@ -59,10 +77,13 @@ model User {
   createdRuleEvents        RuleEvent[]
   createdConsequences      Consequence[]
   createdPointTransactions PointTransaction[]
+  createdXpTransactions    XpTransaction[]
   createdRewards           Reward[]
   createdRewardRedemptions RewardRedemption[]
   createdBadgeAssignments  BadgeAssignment[]
   createdCalendarEvents    CalendarEvent[]
+  createdTaskTemplates     TaskTemplate[]     @relation("TaskTemplateCreatedBy")
+  confirmedTaskOccurrences TaskOccurrence[]   @relation("TaskOccurrenceConfirmedBy")
 }
 
 model Session {
@@ -94,10 +115,13 @@ model Family {
   ruleEvents        RuleEvent[]
   consequences      Consequence[]
   pointTransactions PointTransaction[]
+  xpTransactions    XpTransaction[]
   rewards           Reward[]
   rewardRedemptions RewardRedemption[]
   badgeAssignments  BadgeAssignment[]
   calendarEvents    CalendarEvent[]
+  taskTemplates     TaskTemplate[]
+  taskOccurrences   TaskOccurrence[]
 }
 
 model FamilyUser {
@@ -136,9 +160,12 @@ model FamilyMember {
   ruleEvents           RuleEvent[]
   consequences         Consequence[]
   pointTransactions    PointTransaction[]
+  xpTransactions       XpTransaction[]
   rewardRedemptions    RewardRedemption[]
   badgeAssignments     BadgeAssignment[]
   calendarEvents       CalendarEvent[]
+  taskAssignments      TaskAssignment[]
+  taskOccurrences      TaskOccurrence[]
 
   @@index([familyId])
 }
@@ -330,6 +357,24 @@ model PointTransaction {
   @@index([createdByUserId])
 }
 
+model XpTransaction {
+  id              String   @id @default(cuid())
+  familyId        String
+  familyMemberId  String
+  xp              Int
+  reason          String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, createdAt])
+  @@index([familyMemberId, createdAt])
+  @@index([createdByUserId])
+}
+
 model Reward {
   id              String   @id @default(cuid())
   familyId        String
@@ -386,6 +431,109 @@ model BadgeAssignment {
   @@index([familyId, createdAt])
   @@index([familyMemberId, createdAt])
   @@index([createdByUserId])
+}
+
+model TaskTemplate {
+  id                   String             @id @default(cuid())
+  familyId             String
+  title                String
+  description          String?
+  category             String
+  priority             String             @default("medium")
+  requiresConfirmation Boolean            @default(true)
+  recurrenceType       TaskRecurrenceType @default(once)
+  weekdays             Int[]              @default([])
+  startsAt             DateTime?
+  endsAt               DateTime?
+  dueTime              String?
+  drachmenReward       Int?
+  xpReward             Int?
+  moneyRewardCents     Int?
+  badgeRewardTitle     String?
+  badgeRewardIcon      String?
+  isActive             Boolean            @default(true)
+  createdByUserId      String
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  family      Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy   User             @relation("TaskTemplateCreatedBy", fields: [createdByUserId], references: [id])
+  assignments TaskAssignment[]
+  subtasks    TaskSubTask[]
+  occurrences TaskOccurrence[]
+
+  @@index([familyId, isActive])
+  @@index([createdByUserId])
+}
+
+model TaskAssignment {
+  id             String   @id @default(cuid())
+  taskTemplateId String
+  familyMemberId String
+  createdAt      DateTime @default(now())
+
+  taskTemplate TaskTemplate @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
+  member       FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([taskTemplateId, familyMemberId])
+  @@index([familyMemberId])
+}
+
+model TaskSubTask {
+  id             String   @id @default(cuid())
+  taskTemplateId String
+  title          String
+  position       Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  taskTemplate TaskTemplate @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([taskTemplateId, position])
+}
+
+model TaskOccurrence {
+  id                String     @id @default(cuid())
+  familyId          String
+  taskTemplateId    String
+  familyMemberId    String
+  titleSnapshot     String
+  dueAt             DateTime?
+  status            TaskStatus @default(open)
+  doneAt            DateTime?
+  confirmedAt       DateTime?
+  confirmedByUserId String?
+  drachmenReward    Int?
+  xpReward          Int?
+  moneyRewardCents  Int?
+  badgeRewardTitle  String?
+  badgeRewardIcon   String?
+  rewardBookedAt    DateTime?
+  note              String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  family       Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  taskTemplate TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
+  member       FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  confirmedBy  User?                   @relation("TaskOccurrenceConfirmedBy", fields: [confirmedByUserId], references: [id])
+  subtasks     TaskOccurrenceSubTask[]
+
+  @@index([familyId, dueAt])
+  @@index([familyMemberId, dueAt])
+  @@index([taskTemplateId])
+  @@index([status])
+}
+
+model TaskOccurrenceSubTask {
+  id               String    @id @default(cuid())
+  taskOccurrenceId String
+  titleSnapshot    String
+  position         Int       @default(0)
+  completedAt      DateTime?
+
+  occurrence TaskOccurrence @relation(fields: [taskOccurrenceId], references: [id], onDelete: Cascade)
+
+  @@index([taskOccurrenceId, position])
 }
 
 model CalendarEvent {
