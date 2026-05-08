@@ -82,6 +82,7 @@ model User {
   createdRewardRedemptions RewardRedemption[]
   createdBadgeAssignments  BadgeAssignment[]
   createdCalendarEvents    CalendarEvent[]
+  createdCalendarSources   CalendarSource[]
   createdTaskTemplates     TaskTemplate[]     @relation("TaskTemplateCreatedBy")
   confirmedTaskOccurrences TaskOccurrence[]   @relation("TaskOccurrenceConfirmedBy")
 }
@@ -120,6 +121,7 @@ model Family {
   rewardRedemptions RewardRedemption[]
   badgeAssignments  BadgeAssignment[]
   calendarEvents    CalendarEvent[]
+  calendarSources   CalendarSource[]
   taskTemplates     TaskTemplate[]
   taskOccurrences   TaskOccurrence[]
 }
@@ -164,6 +166,7 @@ model FamilyMember {
   rewardRedemptions    RewardRedemption[]
   badgeAssignments     BadgeAssignment[]
   calendarEvents       CalendarEvent[]
+  calendarSources      CalendarSource[]
   taskAssignments      TaskAssignment[]
   taskOccurrences      TaskOccurrence[]
 
@@ -540,18 +543,50 @@ model CalendarEvent {
   id              String   @id @default(cuid())
   familyId        String
   familyMemberId  String?
+  sourceId        String?
+  externalEventId String?
   title           String
   description     String?
+  location        String?
   startsAt        DateTime
+  endsAt          DateTime?
+  allDay          Boolean  @default(false)
   createdByUserId String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   family    Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
   member    FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  source    CalendarSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   createdBy User          @relation(fields: [createdByUserId], references: [id])
 
   @@index([familyId, startsAt])
   @@index([familyMemberId, startsAt])
+  @@index([sourceId])
+  @@index([createdByUserId])
+  @@unique([sourceId, externalEventId])
+}
+
+model CalendarSource {
+  id              String   @id @default(cuid())
+  familyId        String
+  familyMemberId  String?
+  provider        String   @default("google_ical")
+  name            String
+  url             String
+  syncEnabled     Boolean  @default(true)
+  lastSyncedAt    DateTime?
+  lastSyncError   String?
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  family    Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember?   @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  createdBy User            @relation(fields: [createdByUserId], references: [id])
+  events    CalendarEvent[]
+
+  @@index([familyId, syncEnabled])
+  @@index([familyMemberId])
   @@index([createdByUserId])
 }

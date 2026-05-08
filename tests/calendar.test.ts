@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildCalendarEventUpserts,
   formatDayLabel,
   getWeekRange,
   groupEventsByDay,
   parseCalendarEventInput,
+  parseCalendarSourceInput,
+  parseIcsCalendarEvents,
 } from "../lib/calendar";
 
 test("parseCalendarEventInput normalizes event fields and optional member", () => {
@@ -69,4 +72,64 @@ test("groupEventsByDay creates seven ordered German day buckets", () => {
 
 test("formatDayLabel renders compact German weekday labels", () => {
   assert.equal(formatDayLabel(new Date("2026-05-11T00:00:00.000Z")), "Mo. 11.05.");
+});
+
+test("parseCalendarSourceInput accepts Google/iCal URLs and optional member", () => {
+  assert.deepEqual(
+    parseCalendarSourceInput({
+      name: "  Schule  ",
+      url: " https://calendar.google.com/calendar/ical/example/basic.ics ",
+      familyMemberId: " kid-1 ",
+    }),
+    {
+      name: "Schule",
+      url: "https://calendar.google.com/calendar/ical/example/basic.ics",
+      familyMemberId: "kid-1",
+    },
+  );
+
+  assert.deepEqual(parseCalendarSourceInput({ name: "x", url: "ftp://example.com/feed.ics" }), { success: false });
+});
+
+test("parseIcsCalendarEvents reads timed and all-day Google calendar events", () => {
+  const events = parseIcsCalendarEvents(`BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:math-1@example\nSUMMARY:Mathe\nDESCRIPTION:Raum 101\nLOCATION:Aula\nDTSTART:20260511T073000Z\nDTEND:20260511T081500Z\nEND:VEVENT\nBEGIN:VEVENT\nUID:holiday@example\nSUMMARY:Ferientag\nDTSTART;VALUE=DATE:20260512\nDTEND;VALUE=DATE:20260513\nEND:VEVENT\nEND:VCALENDAR`);
+
+  assert.equal(events.length, 2);
+  assert.deepEqual(events[0], {
+    externalEventId: "math-1@example",
+    title: "Mathe",
+    description: "Raum 101",
+    location: "Aula",
+    startsAt: new Date("2026-05-11T07:30:00.000Z"),
+    endsAt: new Date("2026-05-11T08:15:00.000Z"),
+    allDay: false,
+  });
+  assert.equal(events[1].allDay, true);
+  assert.deepEqual(events[1].startsAt, new Date("2026-05-12T00:00:00.000Z"));
+});
+
+test("buildCalendarEventUpserts maps imported events to idempotent source records", () => {
+  const upserts = buildCalendarEventUpserts({
+    familyId: "family-1",
+    sourceId: "source-1",
+    familyMemberId: "kid-1",
+    createdByUserId: "user-1",
+    importedEvents: [
+      {
+        externalEventId: "math-1@example",
+        title: "Mathe",
+        description: "Raum 101",
+        location: "Aula",
+        startsAt: new Date("2026-05-11T07:30:00.000Z"),
+        endsAt: new Date("2026-05-11T08:15:00.000Z"),
+        allDay: false,
+      },
+    ],
+  });
+
+  assert.equal(upserts.length, 1);
+  assert.deepEqual(upserts[0].where, { sourceId_externalEventId: { sourceId: "source-1", externalEventId: "math-1@example" } });
+  assert.equal(upserts[0].create.familyId, "family-1");
+  assert.equal(upserts[0].create.familyMemberId, "kid-1");
+  assert.equal(upserts[0].update.title, "Mathe");
 });
