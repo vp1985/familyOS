@@ -26,6 +26,17 @@ enum MoneyTransactionType {
   adjustment
 }
 
+enum ProjectStatus {
+  active
+  done
+  archived
+}
+
+enum ProjectExpenseStatus {
+  active
+  voided
+}
+
 model User {
   id                       String             @id @default(cuid())
   email                    String             @unique
@@ -36,15 +47,17 @@ model User {
   familyUsers              FamilyUser[]
   sessions                 Session[]
   createdMoneyTransactions MoneyTransaction[]
+  createdProjects          Project[]
+  createdProjectExpenses   ProjectExpense[]
 }
 
 model Session {
-  id           String   @id @default(cuid())
-  userId       String
-  tokenHash    String   @unique
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  lastSeenAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -61,6 +74,8 @@ model Family {
   members           FamilyMember[]
   financeAccounts   FinanceAccount[]
   moneyTransactions MoneyTransaction[]
+  projects          Project[]
+  projectExpenses   ProjectExpense[]
 }
 
 model FamilyUser {
@@ -80,19 +95,22 @@ model FamilyUser {
 }
 
 model FamilyMember {
-  id                String             @id @default(cuid())
-  familyId          String
-  name              String
-  role              FamilyMemberRole
-  color             String?
-  icon              String?
-  birthday          DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id        String           @id @default(cuid())
+  familyId  String
+  name      String
+  role      FamilyMemberRole
+  color     String?
+  icon      String?
+  birthday  DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
-  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  financeAccount    FinanceAccount?
-  moneyTransactions MoneyTransaction[]
+  family               Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  financeAccount       FinanceAccount?
+  moneyTransactions    MoneyTransaction[]
+  projectParticipants  ProjectParticipant[]
+  paidProjectExpenses  ProjectExpense[]      @relation("ProjectExpensePayer")
+  projectExpenseShares ProjectExpenseShare[]
 
   @@index([familyId])
 }
@@ -128,4 +146,75 @@ model MoneyTransaction {
 
   @@index([familyId, createdAt])
   @@index([familyMemberId, createdAt])
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  familyId        String
+  title           String
+  description     String?
+  status          ProjectStatus @default(active)
+  createdByUserId String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  family       Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy    User                 @relation(fields: [createdByUserId], references: [id])
+  participants ProjectParticipant[]
+  expenses     ProjectExpense[]
+
+  @@index([familyId, createdAt])
+  @@index([createdByUserId])
+}
+
+model ProjectParticipant {
+  id             String   @id @default(cuid())
+  projectId      String
+  familyMemberId String
+  createdAt      DateTime @default(now())
+
+  project Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member  FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, familyMemberId])
+  @@index([familyMemberId])
+}
+
+model ProjectExpense {
+  id              String               @id @default(cuid())
+  familyId        String
+  projectId       String
+  title           String
+  description     String?
+  amountCents     Int
+  paidByMemberId  String
+  createdByUserId String
+  expenseDate     DateTime             @default(now())
+  status          ProjectExpenseStatus @default(active)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  family       Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  project      Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  paidByMember FamilyMember          @relation("ProjectExpensePayer", fields: [paidByMemberId], references: [id])
+  createdBy    User                  @relation(fields: [createdByUserId], references: [id])
+  shares       ProjectExpenseShare[]
+
+  @@index([familyId, createdAt])
+  @@index([projectId, expenseDate])
+  @@index([paidByMemberId])
+}
+
+model ProjectExpenseShare {
+  id             String   @id @default(cuid())
+  expenseId      String
+  familyMemberId String
+  shareCents     Int
+  createdAt      DateTime @default(now())
+
+  expense ProjectExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  member  FamilyMember   @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([expenseId, familyMemberId])
+  @@index([familyMemberId])
 }
