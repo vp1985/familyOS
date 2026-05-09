@@ -29,6 +29,146 @@ export function checklistStatusLabel(status: ChecklistStatus | string) {
   return "Offen";
 }
 
+export type ChecklistCatalogItem = { title: string; note?: string; quantityLabel?: string; required?: boolean };
+export type ChecklistCatalogTemplate = { id: string; title: string; description: string; category: string; kind: ChecklistKind; items: ChecklistCatalogItem[] };
+
+export const checklistCatalog: ChecklistCatalogTemplate[] = [
+  {
+    id: "ausflug-tagesrucksack",
+    title: "Ausflug: Tagesrucksack",
+    description: "Grundliste für Schule, Zoo, Spielplatz oder Tagesausflug.",
+    category: "Ausflug",
+    kind: "PACKING",
+    items: [
+      { title: "Trinkflasche", quantityLabel: "1x" },
+      { title: "Brotdose / Snack", quantityLabel: "1x" },
+      { title: "Wetterkleidung", note: "Regenjacke, Mütze oder Sonnenhut" },
+      { title: "Taschentücher" },
+      { title: "Notfallzettel / Telefonnummer", required: false },
+      { title: "Kleines Taschengeld", required: false },
+    ],
+  },
+  {
+    id: "schwimmbad-badesee",
+    title: "Schwimmbad / Badesee",
+    description: "Rüstliste fürs Schwimmen, Freibad oder See.",
+    category: "Ausflug",
+    kind: "PACKING",
+    items: [
+      { title: "Badesachen", quantityLabel: "1x" },
+      { title: "Handtuch", quantityLabel: "1x" },
+      { title: "Wechselwäsche", quantityLabel: "1 Satz" },
+      { title: "Sonnencreme", required: false },
+      { title: "Badekarte / Eintrittsgeld", required: false },
+      { title: "Nasse Sachen einpacken", note: "Beutel nicht vergessen" },
+    ],
+  },
+  {
+    id: "urlaub-kinderkoffer",
+    title: "Urlaub: Kinderkoffer",
+    description: "Basispackliste für mehrtägige Reisen.",
+    category: "Urlaub",
+    kind: "PACKING",
+    items: [
+      { title: "Unterwäsche", quantityLabel: "pro Tag + Reserve" },
+      { title: "Socken", quantityLabel: "pro Tag + Reserve" },
+      { title: "Hosen / Röcke" },
+      { title: "T-Shirts / Pullis" },
+      { title: "Schlafanzug" },
+      { title: "Kulturbeutel", note: "Zahnbürste, Zahnpasta, Bürste" },
+      { title: "Lieblingskuscheltier / Buch", required: false },
+      { title: "Ladegerät / Kopfhörer", required: false },
+    ],
+  },
+  {
+    id: "uebernachtung",
+    title: "Übernachtung bei Freunden",
+    description: "Kleine Tasche für eine Nacht außer Haus.",
+    category: "Übernachtung",
+    kind: "PACKING",
+    items: [
+      { title: "Schlafanzug" },
+      { title: "Zahnbürste" },
+      { title: "Wechselkleidung", quantityLabel: "1 Satz" },
+      { title: "Unterwäsche und Socken", quantityLabel: "1x" },
+      { title: "Kuscheltier / Buch", required: false },
+      { title: "Kontaktdaten / Abholzeit", required: false },
+    ],
+  },
+  {
+    id: "schultasche",
+    title: "Schultasche packen",
+    description: "Wiederverwendbare Schul-Checkliste für den nächsten Tag.",
+    category: "Schule",
+    kind: "GENERAL",
+    items: [
+      { title: "Stundenplan prüfen" },
+      { title: "Hefte und Bücher einpacken" },
+      { title: "Hausaufgaben einpacken" },
+      { title: "Federmappe vollständig" },
+      { title: "Brotdose / Trinkflasche vorbereiten", required: false },
+      { title: "Sport- oder Schwimmsachen", required: false },
+    ],
+  },
+  {
+    id: "sporttasche",
+    title: "Sporttasche",
+    description: "Training, Schulsport oder Verein.",
+    category: "Sport",
+    kind: "PACKING",
+    items: [
+      { title: "Sportschuhe" },
+      { title: "Sportkleidung" },
+      { title: "Trinkflasche" },
+      { title: "Handtuch", required: false },
+      { title: "Wechselwäsche", required: false },
+      { title: "Vereinskarte / Ausrüstung", required: false },
+    ],
+  },
+  {
+    id: "morgenroutine",
+    title: "Morgenroutine",
+    description: "Kurze Checkliste für einen ruhigen Start.",
+    category: "Alltag",
+    kind: "GENERAL",
+    items: [
+      { title: "Anziehen" },
+      { title: "Zähne putzen" },
+      { title: "Frühstück / Trinkflasche" },
+      { title: "Tasche nehmen" },
+      { title: "Jacke / Schuhe passend zum Wetter" },
+    ],
+  },
+  {
+    id: "abendroutine",
+    title: "Abendroutine",
+    description: "Wiederverwendbare Abend-Checkliste.",
+    category: "Alltag",
+    kind: "GENERAL",
+    items: [
+      { title: "Zimmer kurz aufräumen" },
+      { title: "Schultasche / Kleidung vorbereiten" },
+      { title: "Zähne putzen" },
+      { title: "Schlafanzug anziehen" },
+      { title: "Lesen / Ruhezeit", required: false },
+    ],
+  },
+];
+
+export function getChecklistCatalogTemplate(id: string) {
+  return checklistCatalog.find((template) => template.id === id) ?? null;
+}
+
+export function catalogTemplateToRows(template: ChecklistCatalogTemplate) {
+  return template.items.map((item, sortOrder) => ({
+    title: item.title,
+    note: item.note ?? null,
+    quantityLabel: item.quantityLabel ?? null,
+    required: item.required ?? true,
+    sortOrder,
+  }));
+}
+
 export function prepareChecklistInstance(input: {
   template: { id: string; title: string; category: string; kind: ChecklistKind; items: Array<{ title: string; note: string | null; quantityLabel: string | null; required: boolean; sortOrder: number }> };
   assignedFamilyMemberId?: string | null;
@@ -106,7 +246,7 @@ export async function getChecklistsPageData() {
       take: 50,
     }),
   ]);
-  return { context, templates, instances, members, tasks };
+  return { context, templates, instances, members, tasks, catalog: checklistCatalog };
 }
 
 export async function getKidsChecklistData() {
@@ -140,6 +280,27 @@ export async function createChecklistTemplate(formData: FormData) {
       kind: parsed.data.kind,
       createdByUserId: context.user.id,
       items: { create: parsed.data.items.map((item, sortOrder) => ({ ...item, note: item.note || null, quantityLabel: item.quantityLabel || null, sortOrder })) },
+    },
+  });
+}
+
+
+export async function importChecklistCatalogTemplate(formData: FormData) {
+  const context = await requireFamilyAdmin();
+  const catalogId = formData.get("catalogId")?.toString() ?? "";
+  const titleOverride = formData.get("titleOverride")?.toString().trim() ?? "";
+  const template = getChecklistCatalogTemplate(catalogId);
+  if (!template) redirect("/app/checklists?error=invalid-catalog");
+
+  await db.checklistTemplate.create({
+    data: {
+      familyId: context.family.id,
+      title: titleOverride || template.title,
+      description: template.description,
+      category: template.category,
+      kind: template.kind,
+      createdByUserId: context.user.id,
+      items: { create: catalogTemplateToRows(template) },
     },
   });
 }

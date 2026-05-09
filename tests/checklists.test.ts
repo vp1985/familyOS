@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checklistKindLabel, checklistProgress, checklistProgressLabel, prepareChecklistInstance } from "../lib/checklists";
+import { catalogTemplateToRows, checklistCatalog, checklistKindLabel, checklistProgress, checklistProgressLabel, getChecklistCatalogTemplate, prepareChecklistInstance } from "../lib/checklists";
 
 test("checklistProgress counts done and required items", () => {
   const progress = checklistProgress([
@@ -48,4 +48,23 @@ test("prepareChecklistInstance snapshots template fields and items", () => {
 test("checklistKindLabel renders German labels", () => {
   assert.equal(checklistKindLabel("PACKING"), "Rüstliste");
   assert.equal(checklistKindLabel("GENERAL"), "Checkliste");
+});
+
+test("checklist catalog contains reusable templates for outings, vacation and routines", () => {
+  const ids = checklistCatalog.map((template) => template.id);
+  assert.ok(ids.includes("ausflug-tagesrucksack"));
+  assert.ok(ids.includes("urlaub-kinderkoffer"));
+  assert.ok(ids.includes("morgenroutine"));
+  assert.ok(checklistCatalog.every((template) => template.items.length >= 5));
+});
+
+test("catalog templates can be copied into family checklist templates", () => {
+  const template = getChecklistCatalogTemplate("schwimmbad-badesee");
+  assert.ok(template);
+  const rows = catalogTemplateToRows(template);
+
+  assert.equal(rows[0].title, "Badesachen");
+  assert.equal(rows[0].required, true);
+  assert.equal(rows[0].sortOrder, 0);
+  assert.equal(rows.some((row) => row.required === false), true);
 });

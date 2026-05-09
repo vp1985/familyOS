@@ -3,14 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FormField } from "@/components/ui/form-field";
 import { checklistKindLabel, checklistProgressLabel, checklistStatusLabel, getChecklistsPageData } from "@/lib/checklists";
-import { archiveChecklistInstanceAction, checkChecklistItemAction, createChecklistInstanceAction, createChecklistTemplateAction, uncheckChecklistItemAction } from "./actions";
+import { archiveChecklistInstanceAction, checkChecklistItemAction, createChecklistInstanceAction, createChecklistTemplateAction, importChecklistCatalogTemplateAction, uncheckChecklistItemAction } from "./actions";
 
 function taskLabel(task: Awaited<ReturnType<typeof getChecklistsPageData>>["tasks"][number]) {
   return `${task.titleSnapshot} · ${task.member.name}`;
 }
 
 export default async function ChecklistsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const [{ templates, instances, members, tasks }, params] = await Promise.all([getChecklistsPageData(), searchParams]);
+  const [{ templates, instances, members, tasks, catalog }, params] = await Promise.all([getChecklistsPageData(), searchParams]);
   const error = params.error ? "Bitte prüfe die Eingaben." : null;
 
   return (
@@ -22,6 +22,38 @@ export default async function ChecklistsPage({ searchParams }: { searchParams: P
       </section>
 
       {error ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</p> : null}
+
+      <Card>
+        <CardHeader><CardTitle>Vorlagenkatalog übernehmen</CardTitle></CardHeader>
+        <CardContent className="grid gap-3">
+          <p className="text-sm text-slate-600">Diese Basislisten sind wiederverwendbar. Übernehmen legt eine eigene Vorlage in deiner Familie an; danach kannst du sie kopieren, starten oder als eigene Vorlage weiterführen.</p>
+          <div className="grid gap-3">
+            {catalog.map((preset) => (
+              <form key={preset.id} action={importChecklistCatalogTemplateAction} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <input type="hidden" name="catalogId" value={preset.id} />
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">{checklistKindLabel(preset.kind)} · {preset.category}</p>
+                    <h3 className="mt-1 font-bold text-slate-950">{preset.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{preset.description}</p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-600">{preset.items.length} Punkte</span>
+                </div>
+                <details className="mt-3 text-sm text-slate-600">
+                  <summary className="cursor-pointer font-semibold text-slate-800">Punkte anzeigen</summary>
+                  <ul className="mt-2 grid gap-1">
+                    {preset.items.slice(0, 8).map((item) => <li key={item.title}>• {item.title}{item.quantityLabel ? ` · ${item.quantityLabel}` : ""}</li>)}
+                  </ul>
+                </details>
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <FormField label="Titel anpassen optional" name="titleOverride" placeholder={preset.title} />
+                  <Button type="submit" className="self-end">Übernehmen</Button>
+                </div>
+              </form>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle>Neue Vorlage</CardTitle></CardHeader>

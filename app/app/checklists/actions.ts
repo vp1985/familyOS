@@ -2,10 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { archiveChecklistInstance, createChecklistInstance, createChecklistTemplate, setChecklistItemChecked } from "@/lib/checklists";
+import { archiveChecklistInstance, createChecklistInstance, createChecklistTemplate, importChecklistCatalogTemplate, setChecklistItemChecked } from "@/lib/checklists";
 
 export async function createChecklistTemplateAction(formData: FormData) {
   await createChecklistTemplate(formData);
+  revalidatePath("/app/checklists");
+  redirect("/app/checklists");
+}
+
+export async function importChecklistCatalogTemplateAction(formData: FormData) {
+  await importChecklistCatalogTemplate(formData);
   revalidatePath("/app/checklists");
   redirect("/app/checklists");
 }
