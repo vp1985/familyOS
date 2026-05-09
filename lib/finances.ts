@@ -17,7 +17,20 @@ const accountInputSchema = z.object({
   name: z.string().trim().min(2),
   kind: z.enum(["CASH", "GIRO", "SAVINGS", "DAY_MONEY", "HOME_SAVINGS", "OTHER"]),
   openingBalance: z.string().optional(),
+  childCanBook: z.boolean(),
 });
+
+const childCashSettingsSchema = z.object({
+  childId: z.string().min(1),
+  childCanCreateCashAccounts: z.boolean(),
+  childCashAccountLimit: z.coerce.number().int().min(0).max(10),
+});
+
+export const childCashAccountNameSuggestions = ["Führerschein", "Fahrrad", "Handy", "Urlaub", "Geschenke", "Spielzeug", "Bücher", "Notgroschen"];
+
+export function canChildCreateCashAccount(input: { childCanCreateCashAccounts: boolean; childCashAccountLimit: number; existingChildManagedCashAccounts: number }) {
+  return input.childCanCreateCashAccounts && input.existingChildManagedCashAccounts < input.childCashAccountLimit;
+}
 
 const typeLabels: Record<PrismaMoneyTransactionType, string> = {
   allowance: "Taschengeld",
@@ -62,6 +75,7 @@ export async function ensureFinanceAccount(familyId: string, familyMemberId: str
       name: "Bargeld",
       kind: "CASH",
       isDefault: true,
+      childCanBook: true,
       balanceCents: 0,
     },
   });
@@ -75,7 +89,7 @@ export async function getChildFinanceOverview() {
       familyId: context.family.id,
       role: "child",
     },
-    include: { financeAccounts: true },
+    include: { financeAccounts: { orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -111,6 +125,7 @@ export async function createFinanceAccount(formData: FormData) {
     name: formData.get("name")?.toString(),
     kind: formData.get("kind")?.toString(),
     openingBalance: formData.get("openingBalance")?.toString(),
+    childCanBook: formData.get("childCanBook") === "on",
   });
   if (!parsed.success) redirect("/app/finance?error=invalid-account");
 
@@ -130,7 +145,62 @@ export async function createFinanceAccount(formData: FormData) {
       name: parsed.data.name,
       kind: parsed.data.kind as FinanceAccountKind,
       isDefault: existingCount === 0,
+      childCanBook: ["CASH", "HOME_SAVINGS"].includes(parsed.data.kind) && parsed.data.childCanBook,
       balanceCents: openingBalanceCents,
+    },
+  });
+}
+
+
+export async function updateChildCashAccountSettings(formData: FormData) {
+  const context = await requireFamilyAdmin();
+  const parsed = childCashSettingsSchema.safeParse({
+    childId: formData.get("childId")?.toString(),
+    childCanCreateCashAccounts: formData.get("childCanCreateCashAccounts") === "on",
+    childCashAccountLimit: formData.get("childCashAccountLimit")?.toString() || "5",
+  });
+  if (!parsed.success) redirect("/app/finance?error=invalid-cash-settings");
+
+  await db.familyMember.updateMany({
+    where: { id: parsed.data.childId, familyId: context.family.id, role: "child" },
+    data: {
+      childCanCreateCashAccounts: parsed.data.childCanCreateCashAccounts,
+      childCashAccountLimit: parsed.data.childCashAccountLimit,
+    },
+  });
+}
+
+export async function createChildCashAccount(formData: FormData) {
+  const context = await requireFamilyContext();
+  const parsed = z.object({
+    childId: z.string().min(1),
+    name: z.string().trim().min(2).max(40),
+  }).safeParse({
+    childId: formData.get("childId")?.toString(),
+    name: formData.get("name")?.toString(),
+  });
+  if (!parsed.success) redirect("/app/kids?error=invalid-account");
+
+  const child = await db.familyMember.findFirst({
+    where: { id: parsed.data.childId, familyId: context.family.id, role: "child" },
+    include: { financeAccounts: { where: { kind: "CASH", childManaged: true } } },
+  });
+  if (!child) redirect("/app/kids?error=invalid-child");
+  if (!canChildCreateCashAccount({
+    childCanCreateCashAccounts: child.childCanCreateCashAccounts,
+    childCashAccountLimit: child.childCashAccountLimit,
+    existingChildManagedCashAccounts: child.financeAccounts.length,
+  })) redirect("/app/kids?error=account-limit");
+
+  await db.financeAccount.create({
+    data: {
+      familyId: context.family.id,
+      familyMemberId: child.id,
+      name: parsed.data.name,
+      kind: "CASH",
+      childManaged: true,
+      childCanBook: true,
+      balanceCents: 0,
     },
   });
 }

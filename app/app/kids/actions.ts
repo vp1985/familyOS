@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { updateTaskOccurrenceStatus } from "@/lib/tasks";
 import { createChildLedgerEntry, deleteChildLedgerEntry } from "@/lib/child-ledger";
+import { createChildCashAccount } from "@/lib/finances";
 import { setChecklistItemChecked } from "@/lib/checklists";
 
 export async function markKidsTaskDoneAction(formData: FormData) {
@@ -17,6 +18,13 @@ export async function markKidsTaskDoneAction(formData: FormData) {
 
 export async function createChildLedgerEntryAction(formData: FormData) {
   await createChildLedgerEntry(formData);
+  redirect("/app/kids");
+}
+
+export async function createChildCashAccountAction(formData: FormData) {
+  await createChildCashAccount(formData);
+  revalidatePath("/app/kids");
+  revalidatePath("/app/finance");
   redirect("/app/kids");
 }
 

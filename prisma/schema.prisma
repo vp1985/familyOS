@@ -225,15 +225,17 @@ model FamilyUser {
 }
 
 model FamilyMember {
-  id        String           @id @default(cuid())
-  familyId  String
-  name      String
-  role      FamilyMemberRole
-  color     String?
-  icon      String?
-  birthday  DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id                         String           @id @default(cuid())
+  familyId                   String
+  name                       String
+  role                       FamilyMemberRole
+  color                      String?
+  icon                       String?
+  birthday                   DateTime?
+  childCanCreateCashAccounts Boolean          @default(true)
+  childCashAccountLimit      Int              @default(5)
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
 
   family               Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
   financeAccounts      FinanceAccount[]
@@ -269,6 +271,8 @@ model FinanceAccount {
   name           String             @default("Kinderkonto")
   kind           FinanceAccountKind @default(CASH)
   isDefault      Boolean            @default(false)
+  childManaged   Boolean            @default(false)
+  childCanBook   Boolean            @default(false)
   balanceCents   Int                @default(0)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt

@@ -2,12 +2,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { getKidsTaskData } from "@/lib/dashboard";
-import { formatCents } from "@/lib/finances";
+import { childCashAccountNameSuggestions, canChildCreateCashAccount, formatCents } from "@/lib/finances";
 import { getKidsMoneyData, moneyOccurrenceStatusLabel, sumChildMoneyRules } from "@/lib/child-money";
 import { sumChildLedger } from "@/lib/child-ledger";
 import { getKidsMediaData, mediaRestrictionStatusLabel, mediaTypeLabel } from "@/lib/media-time";
 import { checklistProgressLabel, getKidsChecklistData } from "@/lib/checklists";
-import { createChildLedgerEntryAction, deleteChildLedgerEntryAction, markKidsTaskDoneAction, toggleKidsChecklistItemAction } from "./actions";
+import { createChildCashAccountAction, createChildLedgerEntryAction, deleteChildLedgerEntryAction, markKidsTaskDoneAction, toggleKidsChecklistItemAction } from "./actions";
 
 export default async function KidsPage() {
   const [{ view }, moneyData, mediaData, checklistData] = await Promise.all([getKidsTaskData(), getKidsMoneyData(), getKidsMediaData(), getKidsChecklistData()]);
@@ -40,6 +40,13 @@ export default async function KidsPage() {
           const occurrences = moneyChild?.moneyOccurrences ?? [];
           const ledgerEntries = moneyChild?.childLedgerEntries ?? [];
           const financeAccounts = moneyChild?.financeAccounts ?? [];
+          const childBookableAccounts = financeAccounts.filter((account) => account.childCanBook && ["CASH", "HOME_SAVINGS"].includes(account.kind));
+          const childManagedCashCount = financeAccounts.filter((account) => account.kind === "CASH" && account.childManaged).length;
+          const mayCreateCashAccount = moneyChild ? canChildCreateCashAccount({
+            childCanCreateCashAccounts: moneyChild.childCanCreateCashAccounts,
+            childCashAccountLimit: moneyChild.childCashAccountLimit,
+            existingChildManagedCashAccounts: childManagedCashCount,
+          }) : false;
           const mediaSummary = mediaData.summaries.find((entry) => entry.childId === child.id);
           const checklists = checklistData.instances.filter((entry) => entry.assignedFamilyMemberId === child.id || entry.taskOccurrence?.familyMemberId === child.id);
           return (
@@ -126,6 +133,20 @@ export default async function KidsPage() {
                   ))}
                 </div>
               ) : null}
+              {mayCreateCashAccount ? (
+                <form action={createChildCashAccountAction} className="mt-3 grid gap-2 rounded-2xl bg-white p-3">
+                  <input type="hidden" name="childId" value={child.id} />
+                  <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Neue Spardose anlegen ({childManagedCashCount}/{moneyChild?.childCashAccountLimit ?? 5})</p>
+                  <FormField label="Name" name="name" placeholder="Führerschein" list={`cash-suggestions-${child.id}`} required />
+                  <datalist id={`cash-suggestions-${child.id}`}>
+                    {childCashAccountNameSuggestions.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+                  </datalist>
+                  <Button type="submit" className="min-h-10 rounded-2xl font-black">Spardose speichern</Button>
+                </form>
+              ) : moneyChild?.childCanCreateCashAccounts ? (
+                <p className="mt-3 rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-slate-500">Spardosen-Limit erreicht ({childManagedCashCount}/{moneyChild.childCashAccountLimit}).</p>
+              ) : null}
+
               {occurrences.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-600">Noch keine Geld-Bausteine eingestellt.</p>
               ) : (
@@ -188,7 +209,7 @@ export default async function KidsPage() {
                   Konto
                   <select id={`ledger-account-${child.id}`} name="financeAccountId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950">
                     <option value="">Nur Haushaltsbuch</option>
-                    {financeAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                    {childBookableAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
                   </select>
                 </label>
                 <div className="grid grid-cols-2 gap-2">

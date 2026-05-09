@@ -74,7 +74,7 @@ export async function createChildLedgerEntry(formData: FormData) {
   if (!child) redirect("/app/kids?error=invalid-child");
 
   const account = parsed.data.financeAccountId
-    ? await db.financeAccount.findFirst({ where: { id: parsed.data.financeAccountId, familyId: context.family.id, familyMemberId: child.id } })
+    ? await db.financeAccount.findFirst({ where: { id: parsed.data.financeAccountId, familyId: context.family.id, familyMemberId: child.id, childCanBook: true, kind: { in: ["CASH", "HOME_SAVINGS"] } } })
     : null;
   if (parsed.data.financeAccountId && !account) redirect("/app/kids?error=invalid-account");
 

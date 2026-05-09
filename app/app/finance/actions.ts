@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createFinanceAccount, createMoneyTransaction } from "@/lib/finances";
+import { createFinanceAccount, createMoneyTransaction, updateChildCashAccountSettings } from "@/lib/finances";
 import { createMoneyRule, deactivateMoneyRule, markMoneyOccurrenceStatus } from "@/lib/child-money";
 
 export async function createMoneyTransactionAction(formData: FormData) {
@@ -15,6 +15,13 @@ export async function createMoneyTransactionAction(formData: FormData) {
 
 export async function createFinanceAccountAction(formData: FormData) {
   await createFinanceAccount(formData);
+  revalidatePath("/app/finance");
+  revalidatePath("/app/kids");
+  redirect("/app/finance");
+}
+
+export async function updateChildCashAccountSettingsAction(formData: FormData) {
+  await updateChildCashAccountSettings(formData);
   revalidatePath("/app/finance");
   revalidatePath("/app/kids");
   redirect("/app/finance");

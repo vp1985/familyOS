@@ -7,8 +7,10 @@ import {
   createMoneyTransactionAction,
   deactivateMoneyRuleAction,
   markMoneyOccurrenceStatusAction,
+  updateChildCashAccountSettingsAction,
 } from "@/app/app/finance/actions";
 import {
+  childCashAccountNameSuggestions,
   financeAccountKindLabel,
   formatCents,
   getChildFinanceOverview,
@@ -40,7 +42,7 @@ export default async function FinancePage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const [{ accounts, transactions, totalBalanceCents }, moneyOverview, params] = await Promise.all([
+  const [{ accounts, children, transactions, totalBalanceCents }, moneyOverview, params] = await Promise.all([
     getChildFinanceOverview(),
     getChildMoneyOverview(),
     searchParams,
@@ -75,7 +77,7 @@ export default async function FinancePage({
                   </span>
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-slate-950">{account.member.name}: {account.name}</p>
-                    <p className="text-sm text-slate-500">{financeAccountKindLabel(account.kind)}{account.isDefault ? " · Standard" : ""}</p>
+                    <p className="text-sm text-slate-500">{financeAccountKindLabel(account.kind)}{account.isDefault ? " · Standard" : ""}{account.childManaged ? " · Kind" : ""}{account.childCanBook ? " · Kind darf buchen" : ""}</p>
                   </div>
                 </div>
                 <p className="shrink-0 text-lg font-bold text-slate-950">{formatCents(account.balanceCents)}</p>
@@ -97,9 +99,12 @@ export default async function FinancePage({
               </select>
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <FormField label="Kontoname" name="name" placeholder="Bargeld, Girokonto" required />
+              <FormField label="Kontoname" name="name" placeholder="Führerschein, Girokonto" list="account-name-suggestions" required />
               <FormField label="Anfangsbestand" name="openingBalance" inputMode="decimal" placeholder="0,00" />
             </div>
+            <datalist id="account-name-suggestions">
+              {childCashAccountNameSuggestions.map((suggestion) => <option key={suggestion} value={suggestion} />)}
+            </datalist>
             <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="kind">
               Kontoart
               <select id="kind" name="kind" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" defaultValue="CASH">
@@ -111,8 +116,43 @@ export default async function FinancePage({
                 <option value="OTHER">Sonstiges</option>
               </select>
             </label>
+            <label className="flex items-start gap-2 text-sm font-medium text-slate-700">
+              <input type="checkbox" name="childCanBook" defaultChecked className="mt-1 h-4 w-4" />
+              Kind darf dieses Konto im Haushaltsbuch bebuchen (nur Bargeld/Sparen zu Hause). Bankkonten bleiben Elternkonten.
+            </label>
             <Button className="w-full" type="submit" disabled={moneyOverview.children.length === 0}>Konto speichern</Button>
           </form>
+        </CardContent>
+      </Card>
+
+
+      <Card>
+        <CardHeader><CardTitle>Kinder-Freigaben für Bargeld-Spardosen</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-600">Kinder dürfen nur eigene Bargeld-Spardosen anlegen, wenn es hier freigegeben ist. Standard: maximal 5.</p>
+          {children.map((child) => {
+            const childManagedCashCount = child.financeAccounts.filter((account) => account.kind === "CASH" && account.childManaged).length;
+            return (
+              <form key={child.id} action={updateChildCashAccountSettingsAction} className="grid gap-3 rounded-2xl bg-slate-50 p-3">
+                <input type="hidden" name="childId" value={child.id} />
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-slate-950">{child.name}</p>
+                    <p className="text-xs font-semibold text-slate-500">{childManagedCashCount} von {child.childCashAccountLimit} Kinder-Spardosen genutzt</p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <input type="checkbox" name="childCanCreateCashAccounts" defaultChecked={child.childCanCreateCashAccounts} className="h-4 w-4" />
+                    freigeben
+                  </label>
+                </div>
+                <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor={`cash-limit-${child.id}`}>
+                  Limit
+                  <input id={`cash-limit-${child.id}`} name="childCashAccountLimit" type="number" min="0" max="10" defaultValue={child.childCashAccountLimit} className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+                </label>
+                <Button type="submit" className="min-h-10 px-3 text-sm">Freigabe speichern</Button>
+              </form>
+            );
+          })}
         </CardContent>
       </Card>
 
