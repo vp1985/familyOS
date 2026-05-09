@@ -45,6 +45,19 @@ enum MoneyInterval {
   MONTHLY
 }
 
+enum HouseholdBudgetDirection {
+  INCOME
+  EXPENSE
+}
+
+enum HouseholdBudgetKind {
+  FIXED
+  VARIABLE
+  SAVING
+  DEBT
+  OTHER
+}
+
 enum MoneyOccurrenceStatus {
   OPEN
   PAID_CASH
@@ -126,39 +139,41 @@ enum ChecklistStatus {
 }
 
 model User {
-  id                         String                  @id @default(cuid())
-  email                      String                  @unique
-  name                       String
-  passwordHash               String
-  createdAt                  DateTime                @default(now())
-  updatedAt                  DateTime                @updatedAt
-  familyUsers                FamilyUser[]
-  sessions                   Session[]
-  createdMoneyTransactions   MoneyTransaction[]
-  createdMoneyRules          MoneyRule[]             @relation("MoneyRuleCreatedBy")
-  confirmedMoneyOccurrences  MoneyOccurrence[]       @relation("MoneyOccurrenceConfirmedBy")
-  createdChildLedgerEntries  ChildLedgerEntry[]      @relation("ChildLedgerEntryCreatedBy")
-  createdProjects            Project[]
-  createdProjectExpenses     ProjectExpense[]
-  createdRules               Rule[]
-  createdRuleEvents          RuleEvent[]
-  createdConsequences        Consequence[]
-  createdPointTransactions   PointTransaction[]
-  createdXpTransactions      XpTransaction[]
-  createdRewards             Reward[]
-  createdRewardRedemptions   RewardRedemption[]
-  createdBadgeAssignments    BadgeAssignment[]
-  createdCalendarEvents      CalendarEvent[]
-  createdCalendarSources     CalendarSource[]
-  createdTaskTemplates       TaskTemplate[]          @relation("TaskTemplateCreatedBy")
-  confirmedTaskOccurrences   TaskOccurrence[]        @relation("TaskOccurrenceConfirmedBy")
-  createdMediaAllowanceRules MediaAllowanceRule[]    @relation("MediaAllowanceRuleCreatedBy")
-  createdMediaRestrictions   MediaRestriction[]      @relation("MediaRestrictionCreatedBy")
-  releasedMediaRestrictions  MediaRestriction[]      @relation("MediaRestrictionReleasedBy")
-  createdCompetitionPlayers  CompetitionPlayer[]     @relation("CompetitionPlayerCreatedBy")
-  createdChecklistTemplates  ChecklistTemplate[]     @relation("ChecklistTemplateCreatedBy")
-  createdChecklistInstances  ChecklistInstance[]     @relation("ChecklistInstanceCreatedBy")
-  checkedChecklistItems      ChecklistItemInstance[] @relation("ChecklistItemCheckedBy")
+  id                              String                    @id @default(cuid())
+  email                           String                    @unique
+  name                            String
+  passwordHash                    String
+  createdAt                       DateTime                  @default(now())
+  updatedAt                       DateTime                  @updatedAt
+  familyUsers                     FamilyUser[]
+  sessions                        Session[]
+  createdMoneyTransactions        MoneyTransaction[]
+  createdHouseholdBudgetPlanItems HouseholdBudgetPlanItem[] @relation("HouseholdBudgetPlanItemCreatedBy")
+  createdHouseholdBudgetEntries   HouseholdBudgetEntry[]    @relation("HouseholdBudgetEntryCreatedBy")
+  createdMoneyRules               MoneyRule[]               @relation("MoneyRuleCreatedBy")
+  confirmedMoneyOccurrences       MoneyOccurrence[]         @relation("MoneyOccurrenceConfirmedBy")
+  createdChildLedgerEntries       ChildLedgerEntry[]        @relation("ChildLedgerEntryCreatedBy")
+  createdProjects                 Project[]
+  createdProjectExpenses          ProjectExpense[]
+  createdRules                    Rule[]
+  createdRuleEvents               RuleEvent[]
+  createdConsequences             Consequence[]
+  createdPointTransactions        PointTransaction[]
+  createdXpTransactions           XpTransaction[]
+  createdRewards                  Reward[]
+  createdRewardRedemptions        RewardRedemption[]
+  createdBadgeAssignments         BadgeAssignment[]
+  createdCalendarEvents           CalendarEvent[]
+  createdCalendarSources          CalendarSource[]
+  createdTaskTemplates            TaskTemplate[]            @relation("TaskTemplateCreatedBy")
+  confirmedTaskOccurrences        TaskOccurrence[]          @relation("TaskOccurrenceConfirmedBy")
+  createdMediaAllowanceRules      MediaAllowanceRule[]      @relation("MediaAllowanceRuleCreatedBy")
+  createdMediaRestrictions        MediaRestriction[]        @relation("MediaRestrictionCreatedBy")
+  releasedMediaRestrictions       MediaRestriction[]        @relation("MediaRestrictionReleasedBy")
+  createdCompetitionPlayers       CompetitionPlayer[]       @relation("CompetitionPlayerCreatedBy")
+  createdChecklistTemplates       ChecklistTemplate[]       @relation("ChecklistTemplateCreatedBy")
+  createdChecklistInstances       ChecklistInstance[]       @relation("ChecklistInstanceCreatedBy")
+  checkedChecklistItems           ChecklistItemInstance[]   @relation("ChecklistItemCheckedBy")
 }
 
 model Session {
@@ -176,36 +191,38 @@ model Session {
 }
 
 model Family {
-  id                  String               @id @default(cuid())
-  name                String
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  users               FamilyUser[]
-  members             FamilyMember[]
-  financeAccounts     FinanceAccount[]
-  moneyTransactions   MoneyTransaction[]
-  moneyRules          MoneyRule[]
-  moneyOccurrences    MoneyOccurrence[]
-  childLedgerEntries  ChildLedgerEntry[]
-  projects            Project[]
-  projectExpenses     ProjectExpense[]
-  rules               Rule[]
-  ruleEvents          RuleEvent[]
-  consequences        Consequence[]
-  pointTransactions   PointTransaction[]
-  xpTransactions      XpTransaction[]
-  rewards             Reward[]
-  rewardRedemptions   RewardRedemption[]
-  badgeAssignments    BadgeAssignment[]
-  calendarEvents      CalendarEvent[]
-  calendarSources     CalendarSource[]
-  taskTemplates       TaskTemplate[]
-  taskOccurrences     TaskOccurrence[]
-  mediaAllowanceRules MediaAllowanceRule[]
-  mediaRestrictions   MediaRestriction[]
-  competitionPlayers  CompetitionPlayer[]
-  checklistTemplates  ChecklistTemplate[]
-  checklistInstances  ChecklistInstance[]
+  id                       String                    @id @default(cuid())
+  name                     String
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  users                    FamilyUser[]
+  members                  FamilyMember[]
+  financeAccounts          FinanceAccount[]
+  householdBudgetPlanItems HouseholdBudgetPlanItem[]
+  householdBudgetEntries   HouseholdBudgetEntry[]
+  moneyTransactions        MoneyTransaction[]
+  moneyRules               MoneyRule[]
+  moneyOccurrences         MoneyOccurrence[]
+  childLedgerEntries       ChildLedgerEntry[]
+  projects                 Project[]
+  projectExpenses          ProjectExpense[]
+  rules                    Rule[]
+  ruleEvents               RuleEvent[]
+  consequences             Consequence[]
+  pointTransactions        PointTransaction[]
+  xpTransactions           XpTransaction[]
+  rewards                  Reward[]
+  rewardRedemptions        RewardRedemption[]
+  badgeAssignments         BadgeAssignment[]
+  calendarEvents           CalendarEvent[]
+  calendarSources          CalendarSource[]
+  taskTemplates            TaskTemplate[]
+  taskOccurrences          TaskOccurrence[]
+  mediaAllowanceRules      MediaAllowanceRule[]
+  mediaRestrictions        MediaRestriction[]
+  competitionPlayers       CompetitionPlayer[]
+  checklistTemplates       ChecklistTemplate[]
+  checklistInstances       ChecklistInstance[]
 }
 
 model FamilyUser {
@@ -262,6 +279,50 @@ model FamilyMember {
   assignedChecklists   ChecklistInstance[]   @relation("ChecklistAssignedMember")
 
   @@index([familyId])
+}
+
+model HouseholdBudgetPlanItem {
+  id              String                   @id @default(cuid())
+  familyId        String
+  title           String
+  category        String
+  amountCents     Int
+  direction       HouseholdBudgetDirection
+  kind            HouseholdBudgetKind      @default(VARIABLE)
+  active          Boolean                  @default(true)
+  createdByUserId String
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  family    Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User                   @relation("HouseholdBudgetPlanItemCreatedBy", fields: [createdByUserId], references: [id])
+  entries   HouseholdBudgetEntry[]
+
+  @@index([familyId, active])
+  @@index([createdByUserId])
+}
+
+model HouseholdBudgetEntry {
+  id              String                   @id @default(cuid())
+  familyId        String
+  planItemId      String?
+  title           String
+  category        String
+  amountCents     Int
+  direction       HouseholdBudgetDirection
+  monthKey        String
+  occurredAt      DateTime                 @default(now())
+  createdByUserId String
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  family    Family                   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planItem  HouseholdBudgetPlanItem? @relation(fields: [planItemId], references: [id], onDelete: SetNull)
+  createdBy User                     @relation("HouseholdBudgetEntryCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([familyId, monthKey])
+  @@index([planItemId])
+  @@index([createdByUserId])
 }
 
 model FinanceAccount {

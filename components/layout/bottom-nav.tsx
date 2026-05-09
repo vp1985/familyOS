@@ -4,6 +4,7 @@ const items = [
   { href: "/app", label: "Start", icon: "🏠" },
   { href: "/app/family", label: "Familie", icon: "👨‍👩‍👧" },
   { href: "/app/finance", label: "Geld", icon: "💶" },
+  { href: "/app/budget", label: "Budget", icon: "📊" },
   { href: "/app/calendar", label: "Plan", icon: "🗓️" },
   { href: "/app/kids", label: "Kids", icon: "🧒" },
   { href: "/app/media", label: "Medien", icon: "📱" },
