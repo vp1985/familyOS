@@ -40,4 +40,5 @@ test("canDeleteChildLedgerEntry only allows child to delete own entries", () => 
   assert.equal(canDeleteChildLedgerEntry(entries[0], "child-1"), true);
   assert.equal(canDeleteChildLedgerEntry(entries[0], "child-2"), false);
   assert.equal(canDeleteChildLedgerEntry({ ...entries[0], createdByChildId: "child-2" }, "child-1"), false);
+  assert.equal(canDeleteChildLedgerEntry({ ...entries[0], financeAccountId: "account-1" }, "child-1"), false);
 });

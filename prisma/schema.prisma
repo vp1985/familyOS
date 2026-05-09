@@ -27,6 +27,15 @@ enum MoneyTransactionType {
   reward
 }
 
+enum FinanceAccountKind {
+  CASH
+  GIRO
+  SAVINGS
+  DAY_MONEY
+  HOME_SAVINGS
+  OTHER
+}
+
 enum MoneyDirection {
   INCOME
   EXPENSE
@@ -106,36 +115,36 @@ enum MediaRestrictionStatus {
 }
 
 model User {
-  id                       String             @id @default(cuid())
-  email                    String             @unique
-  name                     String
-  passwordHash             String
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
-  familyUsers              FamilyUser[]
-  sessions                 Session[]
-  createdMoneyTransactions MoneyTransaction[]
-  createdMoneyRules        MoneyRule[]        @relation("MoneyRuleCreatedBy")
-  confirmedMoneyOccurrences MoneyOccurrence[] @relation("MoneyOccurrenceConfirmedBy")
-  createdChildLedgerEntries ChildLedgerEntry[] @relation("ChildLedgerEntryCreatedBy")
-  createdProjects          Project[]
-  createdProjectExpenses   ProjectExpense[]
-  createdRules             Rule[]
-  createdRuleEvents        RuleEvent[]
-  createdConsequences      Consequence[]
-  createdPointTransactions PointTransaction[]
-  createdXpTransactions    XpTransaction[]
-  createdRewards           Reward[]
-  createdRewardRedemptions RewardRedemption[]
-  createdBadgeAssignments  BadgeAssignment[]
-  createdCalendarEvents    CalendarEvent[]
-  createdCalendarSources   CalendarSource[]
-  createdTaskTemplates     TaskTemplate[]     @relation("TaskTemplateCreatedBy")
-  confirmedTaskOccurrences TaskOccurrence[]   @relation("TaskOccurrenceConfirmedBy")
+  id                         String               @id @default(cuid())
+  email                      String               @unique
+  name                       String
+  passwordHash               String
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @updatedAt
+  familyUsers                FamilyUser[]
+  sessions                   Session[]
+  createdMoneyTransactions   MoneyTransaction[]
+  createdMoneyRules          MoneyRule[]          @relation("MoneyRuleCreatedBy")
+  confirmedMoneyOccurrences  MoneyOccurrence[]    @relation("MoneyOccurrenceConfirmedBy")
+  createdChildLedgerEntries  ChildLedgerEntry[]   @relation("ChildLedgerEntryCreatedBy")
+  createdProjects            Project[]
+  createdProjectExpenses     ProjectExpense[]
+  createdRules               Rule[]
+  createdRuleEvents          RuleEvent[]
+  createdConsequences        Consequence[]
+  createdPointTransactions   PointTransaction[]
+  createdXpTransactions      XpTransaction[]
+  createdRewards             Reward[]
+  createdRewardRedemptions   RewardRedemption[]
+  createdBadgeAssignments    BadgeAssignment[]
+  createdCalendarEvents      CalendarEvent[]
+  createdCalendarSources     CalendarSource[]
+  createdTaskTemplates       TaskTemplate[]       @relation("TaskTemplateCreatedBy")
+  confirmedTaskOccurrences   TaskOccurrence[]     @relation("TaskOccurrenceConfirmedBy")
   createdMediaAllowanceRules MediaAllowanceRule[] @relation("MediaAllowanceRuleCreatedBy")
-  createdMediaRestrictions MediaRestriction[] @relation("MediaRestrictionCreatedBy")
-  releasedMediaRestrictions MediaRestriction[] @relation("MediaRestrictionReleasedBy")
-  createdCompetitionPlayers CompetitionPlayer[] @relation("CompetitionPlayerCreatedBy")
+  createdMediaRestrictions   MediaRestriction[]   @relation("MediaRestrictionCreatedBy")
+  releasedMediaRestrictions  MediaRestriction[]   @relation("MediaRestrictionReleasedBy")
+  createdCompetitionPlayers  CompetitionPlayer[]  @relation("CompetitionPlayerCreatedBy")
 }
 
 model Session {
@@ -153,34 +162,34 @@ model Session {
 }
 
 model Family {
-  id                String             @id @default(cuid())
-  name              String
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  users             FamilyUser[]
-  members           FamilyMember[]
-  financeAccounts   FinanceAccount[]
-  moneyTransactions MoneyTransaction[]
-  moneyRules        MoneyRule[]
-  moneyOccurrences  MoneyOccurrence[]
-  childLedgerEntries ChildLedgerEntry[]
-  projects          Project[]
-  projectExpenses   ProjectExpense[]
-  rules             Rule[]
-  ruleEvents        RuleEvent[]
-  consequences      Consequence[]
-  pointTransactions PointTransaction[]
-  xpTransactions    XpTransaction[]
-  rewards           Reward[]
-  rewardRedemptions RewardRedemption[]
-  badgeAssignments  BadgeAssignment[]
-  calendarEvents    CalendarEvent[]
-  calendarSources   CalendarSource[]
-  taskTemplates     TaskTemplate[]
-  taskOccurrences   TaskOccurrence[]
+  id                  String               @id @default(cuid())
+  name                String
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  users               FamilyUser[]
+  members             FamilyMember[]
+  financeAccounts     FinanceAccount[]
+  moneyTransactions   MoneyTransaction[]
+  moneyRules          MoneyRule[]
+  moneyOccurrences    MoneyOccurrence[]
+  childLedgerEntries  ChildLedgerEntry[]
+  projects            Project[]
+  projectExpenses     ProjectExpense[]
+  rules               Rule[]
+  ruleEvents          RuleEvent[]
+  consequences        Consequence[]
+  pointTransactions   PointTransaction[]
+  xpTransactions      XpTransaction[]
+  rewards             Reward[]
+  rewardRedemptions   RewardRedemption[]
+  badgeAssignments    BadgeAssignment[]
+  calendarEvents      CalendarEvent[]
+  calendarSources     CalendarSource[]
+  taskTemplates       TaskTemplate[]
+  taskOccurrences     TaskOccurrence[]
   mediaAllowanceRules MediaAllowanceRule[]
-  mediaRestrictions MediaRestriction[]
-  competitionPlayers CompetitionPlayer[]
+  mediaRestrictions   MediaRestriction[]
+  competitionPlayers  CompetitionPlayer[]
 }
 
 model FamilyUser {
@@ -211,12 +220,12 @@ model FamilyMember {
   updatedAt DateTime         @updatedAt
 
   family               Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  financeAccount       FinanceAccount?
+  financeAccounts      FinanceAccount[]
   moneyTransactions    MoneyTransaction[]
-  moneyRules           MoneyRule[]        @relation("MoneyRuleChild")
-  moneyOccurrences     MoneyOccurrence[]  @relation("MoneyOccurrenceChild")
-  childLedgerEntries   ChildLedgerEntry[] @relation("ChildLedgerEntryChild")
-  createdLedgerEntries ChildLedgerEntry[] @relation("ChildLedgerEntryCreatedByChild")
+  moneyRules           MoneyRule[]           @relation("MoneyRuleChild")
+  moneyOccurrences     MoneyOccurrence[]     @relation("MoneyOccurrenceChild")
+  childLedgerEntries   ChildLedgerEntry[]    @relation("ChildLedgerEntryChild")
+  createdLedgerEntries ChildLedgerEntry[]    @relation("ChildLedgerEntryCreatedByChild")
   projectParticipants  ProjectParticipant[]
   paidProjectExpenses  ProjectExpense[]      @relation("ProjectExpensePayer")
   projectExpenseShares ProjectExpenseShare[]
@@ -230,30 +239,38 @@ model FamilyMember {
   calendarSources      CalendarSource[]
   taskAssignments      TaskAssignment[]
   taskOccurrences      TaskOccurrence[]
-  mediaAllowanceRules  MediaAllowanceRule[] @relation("MediaAllowanceRuleChild")
-  mediaRestrictions    MediaRestriction[] @relation("MediaRestrictionChild")
+  mediaAllowanceRules  MediaAllowanceRule[]  @relation("MediaAllowanceRuleChild")
+  mediaRestrictions    MediaRestriction[]    @relation("MediaRestrictionChild")
 
   @@index([familyId])
 }
 
 model FinanceAccount {
-  id             String   @id @default(cuid())
+  id             String             @id @default(cuid())
   familyId       String
-  familyMemberId String   @unique
-  balanceCents   Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  familyMemberId String
+  name           String             @default("Kinderkonto")
+  kind           FinanceAccountKind @default(CASH)
+  isDefault      Boolean            @default(false)
+  balanceCents   Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  family Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  member FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  family        Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member        FamilyMember       @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  transactions  MoneyTransaction[]
+  moneyRules    MoneyRule[]
+  ledgerEntries ChildLedgerEntry[]
 
   @@index([familyId])
+  @@index([familyMemberId])
 }
 
 model MoneyTransaction {
   id                String               @id @default(cuid())
   familyId          String
   familyMemberId    String
+  financeAccountId  String?
   type              MoneyTransactionType
   title             String
   amountCents       Int
@@ -261,62 +278,74 @@ model MoneyTransaction {
   createdByUserId   String
   createdAt         DateTime             @default(now())
 
-  family    Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  member    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
-  createdBy User         @relation(fields: [createdByUserId], references: [id])
+  family            Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member            FamilyMember      @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  account           FinanceAccount?   @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
+  bookedOccurrences MoneyOccurrence[] @relation("MoneyOccurrenceBookedTransaction")
+  createdBy         User              @relation(fields: [createdByUserId], references: [id])
 
   @@index([familyId, createdAt])
   @@index([familyMemberId, createdAt])
+  @@index([financeAccountId, createdAt])
 }
 
 model MoneyRule {
-  id               String        @id @default(cuid())
+  id               String         @id @default(cuid())
   familyId         String
   childId          String
+  financeAccountId String?
   title            String
   amountCents      Int
   direction        MoneyDirection
-  interval         MoneyInterval @default(MONTHLY)
+  interval         MoneyInterval  @default(MONTHLY)
   destinationLabel String?
-  visibleToChild   Boolean       @default(true)
-  active           Boolean       @default(true)
+  autoConfirm      Boolean        @default(false)
+  visibleToChild   Boolean        @default(true)
+  active           Boolean        @default(true)
   createdByUserId  String
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   family      Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
   child       FamilyMember      @relation("MoneyRuleChild", fields: [childId], references: [id], onDelete: Cascade)
+  account     FinanceAccount?   @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
   createdBy   User              @relation("MoneyRuleCreatedBy", fields: [createdByUserId], references: [id])
   occurrences MoneyOccurrence[]
 
   @@index([familyId, active])
   @@index([childId, active])
+  @@index([financeAccountId])
   @@index([createdByUserId])
 }
 
 model MoneyOccurrence {
-  id                  String                @id @default(cuid())
-  familyId            String
-  ruleId              String
-  childId             String
-  dueMonth            String
-  amountCentsSnapshot Int
-  titleSnapshot       String
-  destinationSnapshot String?
-  status              MoneyOccurrenceStatus @default(OPEN)
-  confirmedByParentId String?
-  confirmedAt         DateTime?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  id                       String                @id @default(cuid())
+  familyId                 String
+  ruleId                   String
+  childId                  String
+  financeAccountIdSnapshot String?
+  dueMonth                 String
+  amountCentsSnapshot      Int
+  titleSnapshot            String
+  destinationSnapshot      String?
+  autoConfirmSnapshot      Boolean               @default(false)
+  status                   MoneyOccurrenceStatus @default(OPEN)
+  bookedTransactionId      String?
+  confirmedByParentId      String?
+  confirmedAt              DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
 
-  family      Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  rule        MoneyRule    @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  child       FamilyMember @relation("MoneyOccurrenceChild", fields: [childId], references: [id], onDelete: Cascade)
-  confirmedBy User?       @relation("MoneyOccurrenceConfirmedBy", fields: [confirmedByParentId], references: [id])
+  family            Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  rule              MoneyRule         @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  child             FamilyMember      @relation("MoneyOccurrenceChild", fields: [childId], references: [id], onDelete: Cascade)
+  bookedTransaction MoneyTransaction? @relation("MoneyOccurrenceBookedTransaction", fields: [bookedTransactionId], references: [id], onDelete: SetNull)
+  confirmedBy       User?             @relation("MoneyOccurrenceConfirmedBy", fields: [confirmedByParentId], references: [id])
 
   @@unique([ruleId, dueMonth])
   @@index([familyId, dueMonth])
   @@index([childId, dueMonth])
+  @@index([bookedTransactionId])
   @@index([status])
 }
 
@@ -324,6 +353,7 @@ model ChildLedgerEntry {
   id               String                @id @default(cuid())
   familyId         String
   childId          String
+  financeAccountId String?
   amountCents      Int
   direction        MoneyDirection
   title            String
@@ -336,13 +366,15 @@ model ChildLedgerEntry {
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
 
-  family         Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  child          FamilyMember @relation("ChildLedgerEntryChild", fields: [childId], references: [id], onDelete: Cascade)
-  createdBy      User?        @relation("ChildLedgerEntryCreatedBy", fields: [createdByUserId], references: [id])
-  createdByChild FamilyMember @relation("ChildLedgerEntryCreatedByChild", fields: [createdByChildId], references: [id], onDelete: Cascade)
+  family         Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child          FamilyMember    @relation("ChildLedgerEntryChild", fields: [childId], references: [id], onDelete: Cascade)
+  account        FinanceAccount? @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
+  createdBy      User?           @relation("ChildLedgerEntryCreatedBy", fields: [createdByUserId], references: [id])
+  createdByChild FamilyMember    @relation("ChildLedgerEntryCreatedByChild", fields: [createdByChildId], references: [id], onDelete: Cascade)
 
   @@index([familyId, occurredAt])
   @@index([childId, occurredAt])
+  @@index([financeAccountId, occurredAt])
   @@index([visibility])
   @@index([createdByUserId])
   @@index([createdByChildId])
@@ -448,11 +480,11 @@ model RuleEvent {
   createdByUserId String
   createdAt       DateTime @default(now())
 
-  family       Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  rule         Rule          @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  member       FamilyMember  @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
-  createdBy    User          @relation(fields: [createdByUserId], references: [id])
-  consequences Consequence[]
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  rule              Rule               @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  member            FamilyMember       @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  createdBy         User               @relation(fields: [createdByUserId], references: [id])
+  consequences      Consequence[]
   mediaRestrictions MediaRestriction[]
 
   @@index([familyId, occurredAt])
@@ -759,7 +791,7 @@ model TaskOccurrenceSubTask {
 }
 
 model CalendarEvent {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   familyId        String
   familyMemberId  String?
   sourceId        String?
@@ -769,36 +801,36 @@ model CalendarEvent {
   location        String?
   startsAt        DateTime
   endsAt          DateTime?
-  allDay          Boolean  @default(false)
+  allDay          Boolean   @default(false)
   createdByUserId String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  family    Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  member    FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  family    Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember?   @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
   source    CalendarSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  createdBy User          @relation(fields: [createdByUserId], references: [id])
+  createdBy User            @relation(fields: [createdByUserId], references: [id])
 
+  @@unique([sourceId, externalEventId])
   @@index([familyId, startsAt])
   @@index([familyMemberId, startsAt])
   @@index([sourceId])
   @@index([createdByUserId])
-  @@unique([sourceId, externalEventId])
 }
 
 model CalendarSource {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   familyId        String
   familyMemberId  String?
-  provider        String   @default("google_ical")
+  provider        String    @default("google_ical")
   name            String
   url             String
-  syncEnabled     Boolean  @default(true)
+  syncEnabled     Boolean   @default(true)
   lastSyncedAt    DateTime?
   lastSyncError   String?
   createdByUserId String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   family    Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
   member    FamilyMember?   @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)

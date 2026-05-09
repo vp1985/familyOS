@@ -5,6 +5,7 @@ import type { MoneyDirection, MoneyOccurrenceStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
+import { bookMoneyTransaction } from "@/lib/finances";
 
 export type ChildMoneyDirection = "INCOME" | "EXPENSE";
 export type ChildMoneyOccurrenceStatus = "OPEN" | "PAID_CASH" | "TRANSFERRED" | "SAVED" | "SKIPPED";
@@ -16,6 +17,8 @@ export type ChildMoneyRuleInput = {
   amountCents: number;
   direction: ChildMoneyDirection;
   destinationLabel: string | null;
+  financeAccountId?: string | null;
+  autoConfirm?: boolean;
   visibleToChild: boolean;
   active: boolean;
 };
@@ -27,6 +30,8 @@ export type PreparedMoneyOccurrence = {
   amountCentsSnapshot: number;
   titleSnapshot: string;
   destinationSnapshot: string | null;
+  financeAccountIdSnapshot: string | null;
+  autoConfirmSnapshot: boolean;
 };
 
 const statusLabels: Record<ChildMoneyOccurrenceStatus, string> = {
@@ -39,10 +44,12 @@ const statusLabels: Record<ChildMoneyOccurrenceStatus, string> = {
 
 const moneyRuleSchema = z.object({
   childId: z.string().min(1),
+  financeAccountId: z.string().optional(),
   title: z.string().trim().min(2),
   amount: z.string().min(1),
   direction: z.enum(["INCOME", "EXPENSE"]),
   destinationLabel: z.string().trim().optional(),
+  autoConfirm: z.boolean(),
   visibleToChild: z.boolean(),
 });
 
@@ -82,11 +89,35 @@ export function prepareMoneyOccurrencesForMonth(
       amountCentsSnapshot: rule.amountCents,
       titleSnapshot: rule.title,
       destinationSnapshot: rule.destinationLabel,
+      financeAccountIdSnapshot: rule.financeAccountId ?? null,
+      autoConfirmSnapshot: rule.autoConfirm ?? false,
     }));
 }
 
 export function moneyOccurrenceStatusLabel(status: ChildMoneyOccurrenceStatus | MoneyOccurrenceStatus): string {
   return statusLabels[status as ChildMoneyOccurrenceStatus];
+}
+
+async function bookOccurrenceIfNeeded(occurrenceId: string, userId: string) {
+  const occurrence = await db.moneyOccurrence.findUnique({
+    where: { id: occurrenceId },
+    include: { rule: true },
+  });
+  if (!occurrence || occurrence.bookedTransactionId || !occurrence.financeAccountIdSnapshot || occurrence.status === "OPEN" || occurrence.status === "SKIPPED") return;
+
+  const transaction = await bookMoneyTransaction({
+    familyId: occurrence.familyId,
+    userId,
+    accountId: occurrence.financeAccountIdSnapshot,
+    type: occurrence.rule.direction === "EXPENSE" ? "loan" : "allowance",
+    title: occurrence.titleSnapshot,
+    amountCents: occurrence.amountCentsSnapshot,
+  });
+  if (!transaction) return;
+  await db.moneyOccurrence.update({
+    where: { id: occurrence.id },
+    data: { bookedTransactionId: transaction.id },
+  });
 }
 
 export async function ensureMoneyOccurrencesForMonth(familyId: string, dueMonth = monthKey()) {
@@ -96,19 +127,25 @@ export async function ensureMoneyOccurrencesForMonth(familyId: string, dueMonth 
   });
 
   for (const rule of rules) {
-    await db.moneyOccurrence.upsert({
+    const occurrence = await db.moneyOccurrence.upsert({
       where: { ruleId_dueMonth: { ruleId: rule.id, dueMonth } },
       update: {},
       create: {
         familyId,
         ruleId: rule.id,
         childId: rule.childId,
+        financeAccountIdSnapshot: rule.financeAccountId,
         dueMonth,
         amountCentsSnapshot: rule.amountCents,
         titleSnapshot: rule.title,
         destinationSnapshot: rule.destinationLabel,
+        autoConfirmSnapshot: rule.autoConfirm,
+        status: rule.autoConfirm ? "TRANSFERRED" : "OPEN",
+        confirmedByParentId: rule.autoConfirm ? rule.createdByUserId : null,
+        confirmedAt: rule.autoConfirm ? new Date() : null,
       },
     });
+    if (occurrence.autoConfirmSnapshot) await bookOccurrenceIfNeeded(occurrence.id, rule.createdByUserId);
   }
 }
 
@@ -117,12 +154,13 @@ export async function getChildMoneyOverview() {
   const dueMonth = monthKey();
   await ensureMoneyOccurrencesForMonth(context.family.id, dueMonth);
 
-  const [children, rules, occurrences] = await Promise.all([
+  const [children, rules, occurrences, accounts] = await Promise.all([
     db.familyMember.findMany({
       where: { familyId: context.family.id, role: "child" },
       include: {
         childLedgerEntries: {
           where: { visibility: "PARENT_VISIBLE" },
+          include: { account: true },
           orderBy: { occurredAt: "desc" },
           take: 8,
         },
@@ -131,17 +169,22 @@ export async function getChildMoneyOverview() {
     }),
     db.moneyRule.findMany({
       where: { familyId: context.family.id },
-      include: { child: true },
+      include: { child: true, account: true },
       orderBy: [{ active: "desc" }, { createdAt: "asc" }],
     }),
     db.moneyOccurrence.findMany({
       where: { familyId: context.family.id, dueMonth },
-      include: { child: true, rule: true },
+      include: { child: true, rule: true, bookedTransaction: true },
       orderBy: { createdAt: "asc" },
+    }),
+    db.financeAccount.findMany({
+      where: { familyId: context.family.id, member: { role: "child" } },
+      include: { member: true },
+      orderBy: [{ member: { createdAt: "asc" } }, { isDefault: "desc" }, { createdAt: "asc" }],
     }),
   ]);
 
-  return { context, dueMonth, children, rules, occurrences };
+  return { context, dueMonth, children, rules, occurrences, accounts };
 }
 
 export async function getKidsMoneyData() {
@@ -152,13 +195,14 @@ export async function getKidsMoneyData() {
   const children = await db.familyMember.findMany({
     where: { familyId: context.family.id, role: "child" },
     include: {
-      moneyRules: { where: { active: true, visibleToChild: true }, orderBy: { createdAt: "asc" } },
+      financeAccounts: { orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] },
+      moneyRules: { where: { active: true, visibleToChild: true }, include: { account: true }, orderBy: { createdAt: "asc" } },
       moneyOccurrences: {
         where: { dueMonth, rule: { visibleToChild: true } },
-        include: { rule: true },
+        include: { rule: true, bookedTransaction: true },
         orderBy: { createdAt: "asc" },
       },
-      childLedgerEntries: { orderBy: { occurredAt: "desc" }, take: 6 },
+      childLedgerEntries: { include: { account: true }, orderBy: { occurredAt: "desc" }, take: 6 },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -170,10 +214,12 @@ export async function createMoneyRule(formData: FormData) {
   const context = await requireFamilyAdmin();
   const parsed = moneyRuleSchema.safeParse({
     childId: formData.get("childId")?.toString(),
+    financeAccountId: formData.get("financeAccountId")?.toString(),
     title: formData.get("title")?.toString(),
     amount: formData.get("amount")?.toString(),
     direction: formData.get("direction")?.toString(),
     destinationLabel: formData.get("destinationLabel")?.toString(),
+    autoConfirm: formData.get("autoConfirm") === "on",
     visibleToChild: formData.get("visibleToChild") === "on",
   });
 
@@ -186,14 +232,21 @@ export async function createMoneyRule(formData: FormData) {
   });
   if (!child) redirect("/app/finance?error=invalid-member");
 
+  const account = parsed.data.financeAccountId
+    ? await db.financeAccount.findFirst({ where: { id: parsed.data.financeAccountId, familyId: context.family.id, familyMemberId: child.id } })
+    : null;
+  if (parsed.data.financeAccountId && !account) redirect("/app/finance?error=invalid-account");
+
   await db.moneyRule.create({
     data: {
       familyId: context.family.id,
       childId: child.id,
+      financeAccountId: account?.id ?? null,
       title: parsed.data.title,
       amountCents,
       direction: parsed.data.direction as MoneyDirection,
-      destinationLabel: parsed.data.destinationLabel || null,
+      destinationLabel: parsed.data.destinationLabel || account?.name || null,
+      autoConfirm: parsed.data.autoConfirm,
       visibleToChild: parsed.data.visibleToChild,
       createdByUserId: context.user.id,
     },
@@ -222,7 +275,7 @@ export async function markMoneyOccurrenceStatus(formData: FormData) {
   });
   if (!parsed.success) redirect("/app/finance?error=invalid-money-status");
 
-  await db.moneyOccurrence.updateMany({
+  const occurrence = await db.moneyOccurrence.update({
     where: { id: parsed.data.occurrenceId, familyId: context.family.id },
     data: {
       status: parsed.data.status as MoneyOccurrenceStatus,
@@ -230,6 +283,7 @@ export async function markMoneyOccurrenceStatus(formData: FormData) {
       confirmedAt: parsed.data.status === "OPEN" ? null : new Date(),
     },
   });
+  if (parsed.data.status !== "OPEN") await bookOccurrenceIfNeeded(occurrence.id, context.user.id);
   revalidatePath("/app/finance");
   revalidatePath("/app/kids");
 }

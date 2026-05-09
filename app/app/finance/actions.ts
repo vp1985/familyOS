@@ -2,13 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createMoneyTransaction } from "@/lib/finances";
+import { createFinanceAccount, createMoneyTransaction } from "@/lib/finances";
 import { createMoneyRule, deactivateMoneyRule, markMoneyOccurrenceStatus } from "@/lib/child-money";
 
 export async function createMoneyTransactionAction(formData: FormData) {
   await createMoneyTransaction(formData);
   revalidatePath("/app");
   revalidatePath("/app/finance");
+  revalidatePath("/app/kids");
+  redirect("/app/finance");
+}
+
+export async function createFinanceAccountAction(formData: FormData) {
+  await createFinanceAccount(formData);
+  revalidatePath("/app/finance");
+  revalidatePath("/app/kids");
   redirect("/app/finance");
 }
 

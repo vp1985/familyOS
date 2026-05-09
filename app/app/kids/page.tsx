@@ -38,6 +38,7 @@ export default async function KidsPage() {
           const visibleRules = moneyChild?.moneyRules ?? [];
           const occurrences = moneyChild?.moneyOccurrences ?? [];
           const ledgerEntries = moneyChild?.childLedgerEntries ?? [];
+          const financeAccounts = moneyChild?.financeAccounts ?? [];
           const mediaSummary = mediaData.summaries.find((entry) => entry.childId === child.id);
           return (
           <section key={child.id} className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">
@@ -82,6 +83,16 @@ export default async function KidsPage() {
             <div className="rounded-3xl bg-emerald-50 p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Mein Geld diesen Monat</p>
               <p className="mt-1 text-2xl font-black text-slate-950">{formatCents(sumChildMoneyRules(visibleRules))}</p>
+              {financeAccounts.length > 0 ? (
+                <div className="mt-3 grid gap-2">
+                  {financeAccounts.map((account) => (
+                    <div key={account.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2">
+                      <p className="font-bold text-slate-950">{account.name}</p>
+                      <p className="font-black text-slate-950">{formatCents(account.balanceCents)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               {occurrences.length === 0 ? (
                 <p className="mt-2 text-sm text-slate-600">Noch keine Geld-Bausteine eingestellt.</p>
               ) : (
@@ -92,7 +103,7 @@ export default async function KidsPage() {
                         <p className="font-bold text-slate-950">{occurrence.titleSnapshot}</p>
                         <p className="font-black text-slate-950">{formatCents(occurrence.rule.direction === "EXPENSE" ? -occurrence.amountCentsSnapshot : occurrence.amountCentsSnapshot)}</p>
                       </div>
-                      <p className="text-xs font-semibold text-slate-500">{occurrence.destinationSnapshot || "kein Ziel"} · {moneyOccurrenceStatusLabel(occurrence.status)}</p>
+                      <p className="text-xs font-semibold text-slate-500">{occurrence.destinationSnapshot || "kein Ziel"} · {moneyOccurrenceStatusLabel(occurrence.status)}{occurrence.bookedTransaction ? " · gebucht" : ""}</p>
                     </div>
                   ))}
                 </div>
@@ -140,6 +151,13 @@ export default async function KidsPage() {
                   <FormField label="Betrag" name="amount" inputMode="decimal" placeholder="2,00" required />
                 </div>
                 <FormField label="Wofür?" name="title" placeholder="Eis gekauft" required />
+                <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor={`ledger-account-${child.id}`}>
+                  Konto
+                  <select id={`ledger-account-${child.id}`} name="financeAccountId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950">
+                    <option value="">Nur Haushaltsbuch</option>
+                    {financeAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+                  </select>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <FormField label="Kategorie" name="categoryLabel" placeholder="Süßes" />
                   <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor={`visibility-${child.id}`}>
@@ -158,13 +176,15 @@ export default async function KidsPage() {
                     <div key={entry.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2">
                       <div>
                         <p className="font-bold text-slate-950">{entry.title} · {formatCents(entry.direction === "EXPENSE" ? -entry.amountCents : entry.amountCents)}</p>
-                        <p className="text-xs font-semibold text-slate-500">{entry.visibility === "CHILD_PRIVATE" ? "privat" : "Eltern sichtbar"}</p>
+                        <p className="text-xs font-semibold text-slate-500">{entry.account?.name || (entry.visibility === "CHILD_PRIVATE" ? "privat" : "Eltern sichtbar")}</p>
                       </div>
-                      <form action={deleteChildLedgerEntryAction}>
-                        <input type="hidden" name="entryId" value={entry.id} />
-                        <input type="hidden" name="childId" value={child.id} />
-                        <Button type="submit" className="min-h-10 px-3 text-sm">Löschen</Button>
-                      </form>
+                      {!entry.financeAccountId ? (
+                        <form action={deleteChildLedgerEntryAction}>
+                          <input type="hidden" name="entryId" value={entry.id} />
+                          <input type="hidden" name="childId" value={child.id} />
+                          <Button type="submit" className="px-3 py-2 text-xs">Löschen</Button>
+                        </form>
+                      ) : null}
                     </div>
                   ))}
                 </div>

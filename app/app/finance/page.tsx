@@ -2,12 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/button";
 import {
+  createFinanceAccountAction,
   createMoneyRuleAction,
   createMoneyTransactionAction,
   deactivateMoneyRuleAction,
   markMoneyOccurrenceStatusAction,
 } from "@/app/app/finance/actions";
 import {
+  financeAccountKindLabel,
   formatCents,
   getChildFinanceOverview,
   moneyTransactionLabel,
@@ -21,6 +23,7 @@ function errorText(error?: string) {
   if (error === "invalid-transaction") return "Bitte fülle alle Pflichtfelder aus.";
   if (error === "invalid-money-rule") return "Bitte fülle Kind, Titel und Betrag aus.";
   if (error === "invalid-money-status") return "Der Status konnte nicht gespeichert werden.";
+  if (error === "invalid-account") return "Bitte wähle ein gültiges Konto aus.";
   return null;
 }
 
@@ -71,8 +74,8 @@ export default async function FinancePage({
                     {account.member.icon ?? "🧒"}
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-slate-950">{account.member.name}</p>
-                    <p className="text-sm text-slate-500">Kinderkonto</p>
+                    <p className="truncate font-semibold text-slate-950">{account.member.name}: {account.name}</p>
+                    <p className="text-sm text-slate-500">{financeAccountKindLabel(account.kind)}{account.isDefault ? " · Standard" : ""}</p>
                   </div>
                 </div>
                 <p className="shrink-0 text-lg font-bold text-slate-950">{formatCents(account.balanceCents)}</p>
@@ -81,6 +84,37 @@ export default async function FinancePage({
           ))
         )}
       </section>
+
+      <Card>
+        <CardHeader><CardTitle>Konto anlegen</CardTitle></CardHeader>
+        <CardContent>
+          <form action={createFinanceAccountAction} className="space-y-4">
+            <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="account-familyMemberId">
+              Kind
+              <select id="account-familyMemberId" name="familyMemberId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" required>
+                <option value="">Bitte wählen</option>
+                {moneyOverview.children.map((child) => <option key={child.id} value={child.id}>{child.name}</option>)}
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Kontoname" name="name" placeholder="Bargeld, Girokonto" required />
+              <FormField label="Anfangsbestand" name="openingBalance" inputMode="decimal" placeholder="0,00" />
+            </div>
+            <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="kind">
+              Kontoart
+              <select id="kind" name="kind" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" defaultValue="CASH">
+                <option value="CASH">Bargeld</option>
+                <option value="GIRO">Girokonto</option>
+                <option value="SAVINGS">Sparkonto</option>
+                <option value="DAY_MONEY">Tagesgeld</option>
+                <option value="HOME_SAVINGS">Sparen zu Hause</option>
+                <option value="OTHER">Sonstiges</option>
+              </select>
+            </label>
+            <Button className="w-full" type="submit" disabled={moneyOverview.children.length === 0}>Konto speichern</Button>
+          </form>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -107,8 +141,19 @@ export default async function FinancePage({
                   <option value="EXPENSE">Ausgabe/Abzug</option>
                 </select>
               </label>
-              <FormField label="Ziel" name="destinationLabel" placeholder="bar, Bank, Sparkonto" />
+              <FormField label="Ziel-Text" name="destinationLabel" placeholder="bar, Bank, Sparkonto" />
             </div>
+            <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="rule-financeAccountId">
+              Zielkonto
+              <select id="rule-financeAccountId" name="financeAccountId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+                <option value="">Nur abhaken, nicht buchen</option>
+                {accounts.map((account) => <option key={account.id} value={account.id}>{account.member.name}: {account.name}</option>)}
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input type="checkbox" name="autoConfirm" className="h-4 w-4" />
+              Automatisch verbuchen / Dauerauftrag
+            </label>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
               <input type="checkbox" name="visibleToChild" defaultChecked className="h-4 w-4" />
               Für Kind sichtbar
@@ -135,7 +180,7 @@ export default async function FinancePage({
                       <div key={rule.id} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
                         <div>
                           <p className="font-semibold text-slate-950">{rule.title} · {formatCents(rule.direction === "EXPENSE" ? -rule.amountCents : rule.amountCents)}</p>
-                          <p className="text-sm text-slate-500">{rule.destinationLabel || "kein Ziel"} · {rule.visibleToChild ? "sichtbar" : "versteckt"}</p>
+                          <p className="text-sm text-slate-500">{rule.account?.name || rule.destinationLabel || "kein Ziel"} · {rule.autoConfirm ? "automatisch" : "abhaken"} · {rule.visibleToChild ? "sichtbar" : "versteckt"}</p>
                         </div>
                         <form action={deactivateMoneyRuleAction}>
                           <input type="hidden" name="ruleId" value={rule.id} />
@@ -160,7 +205,7 @@ export default async function FinancePage({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-950">{occurrence.child.name}: {occurrence.titleSnapshot}</p>
-                    <p className="text-sm text-slate-500">{formatCents(occurrence.rule.direction === "EXPENSE" ? -occurrence.amountCentsSnapshot : occurrence.amountCentsSnapshot)} · {occurrence.destinationSnapshot || "kein Ziel"} · {moneyOccurrenceStatusLabel(occurrence.status)}</p>
+                    <p className="text-sm text-slate-500">{formatCents(occurrence.rule.direction === "EXPENSE" ? -occurrence.amountCentsSnapshot : occurrence.amountCentsSnapshot)} · {occurrence.destinationSnapshot || "kein Ziel"} · {moneyOccurrenceStatusLabel(occurrence.status)}{occurrence.bookedTransaction ? " · gebucht" : ""}</p>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -182,11 +227,11 @@ export default async function FinancePage({
         <CardHeader><CardTitle>Geldbewegung eintragen</CardTitle></CardHeader>
         <CardContent>
           <form action={createMoneyTransactionAction} className="space-y-4">
-            <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="familyMemberId">
-              Kind
-              <select id="familyMemberId" name="familyMemberId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" required>
+            <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="financeAccountId">
+              Konto
+              <select id="financeAccountId" name="financeAccountId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" required>
                 <option value="">Bitte wählen</option>
-                {accounts.map((account) => <option key={account.familyMemberId} value={account.familyMemberId}>{account.member.name}</option>)}
+                {accounts.map((account) => <option key={account.id} value={account.id}>{account.member.name}: {account.name}</option>)}
               </select>
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="type">
@@ -222,7 +267,7 @@ export default async function FinancePage({
                       <p className="font-semibold text-slate-950">{entry.title}</p>
                       <p className="font-bold text-slate-950">{formatCents(entry.direction === "EXPENSE" ? -entry.amountCents : entry.amountCents)}</p>
                     </div>
-                    <p className="text-sm text-slate-500">{entry.categoryLabel || "ohne Kategorie"}</p>
+                    <p className="text-sm text-slate-500">{entry.account?.name || entry.categoryLabel || "ohne Kategorie"}</p>
                   </div>
                 ))}
               </CardContent>
@@ -245,7 +290,7 @@ export default async function FinancePage({
                     <p className="font-bold text-slate-950">{formatCents(transaction.amountCents)}</p>
                   </div>
                   <p className="text-sm text-slate-500">
-                    {transaction.member.name} · {moneyTransactionLabel(transaction.type)} · Saldo {formatCents(transaction.balanceAfterCents)}
+                    {transaction.member.name}{transaction.account ? ` · ${transaction.account.name}` : ""} · {moneyTransactionLabel(transaction.type)} · Saldo {formatCents(transaction.balanceAfterCents)}
                   </p>
                 </CardContent>
               </Card>

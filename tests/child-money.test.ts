@@ -69,6 +69,8 @@ test("prepareMoneyOccurrencesForMonth snapshots active rule fields without accou
     amountCentsSnapshot: 1000,
     titleSnapshot: "Essen gehen",
     destinationSnapshot: "bar",
+    financeAccountIdSnapshot: null,
+    autoConfirmSnapshot: false,
   });
   assert.equal(occurrences[1].destinationSnapshot, "Sparkonto");
 });

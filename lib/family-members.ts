@@ -102,6 +102,9 @@ export async function createFamilyMemberAction(formData: FormData) {
         data: {
           familyId: context.family.id,
           familyMemberId: member.id,
+          name: "Bargeld",
+          kind: "CASH",
+          isDefault: true,
         },
       });
     }

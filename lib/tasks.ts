@@ -375,11 +375,11 @@ export async function updateTaskOccurrenceStatus(occurrenceId: string, status: T
     writes.push(db.xpTransaction.create({ data: { familyId: context.family.id, familyMemberId: rewards.xpEvent.familyMemberId, xp: rewards.xpEvent.xp, reason: rewards.xpEvent.reason, createdByUserId: context.user.id } }) as never);
   }
   if ("moneyTransaction" in rewards && rewards.moneyTransaction) {
-    const account = await db.financeAccount.findUnique({ where: { familyMemberId: occurrence.familyMemberId } });
+    const account = await db.financeAccount.findFirst({ where: { familyMemberId: occurrence.familyMemberId }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] });
     if (account) {
       const balanceAfterCents = applyMoneyTransaction(account.balanceCents, "reward", rewards.moneyTransaction.amountCents);
       writes.push(db.financeAccount.update({ where: { id: account.id }, data: { balanceCents: balanceAfterCents } }) as never);
-      writes.push(db.moneyTransaction.create({ data: { familyId: context.family.id, familyMemberId: occurrence.familyMemberId, type: "reward", title: rewards.moneyTransaction.title, amountCents: rewards.moneyTransaction.amountCents, balanceAfterCents, createdByUserId: context.user.id } }) as never);
+      writes.push(db.moneyTransaction.create({ data: { familyId: context.family.id, familyMemberId: occurrence.familyMemberId, financeAccountId: account.id, type: "reward", title: rewards.moneyTransaction.title, amountCents: rewards.moneyTransaction.amountCents, balanceAfterCents, createdByUserId: context.user.id } }) as never);
     }
   }
 

@@ -5,6 +5,7 @@ import type { ChildLedgerVisibility, MoneyDirection } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireFamilyContext } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
+import { bookMoneyTransaction } from "@/lib/finances";
 import type { ChildMoneyDirection } from "./child-money";
 
 export type ChildLedgerVisibilityValue = "PARENT_VISIBLE" | "CHILD_PRIVATE";
@@ -12,6 +13,7 @@ export type ChildLedgerVisibilityValue = "PARENT_VISIBLE" | "CHILD_PRIVATE";
 export type ChildLedgerEntryInput = {
   id: string;
   childId: string;
+  financeAccountId?: string | null;
   amountCents: number;
   direction: ChildMoneyDirection;
   title: string;
@@ -21,6 +23,7 @@ export type ChildLedgerEntryInput = {
 
 const ledgerEntrySchema = z.object({
   childId: z.string().min(1),
+  financeAccountId: z.string().optional(),
   amount: z.string().min(1),
   direction: z.enum(["INCOME", "EXPENSE"]),
   title: z.string().trim().min(2),
@@ -42,16 +45,17 @@ export function entriesVisibleToParents<T extends Pick<ChildLedgerEntryInput, "v
 }
 
 export function canDeleteChildLedgerEntry(
-  entry: Pick<ChildLedgerEntryInput, "createdByChildId" | "childId">,
+  entry: Pick<ChildLedgerEntryInput, "createdByChildId" | "childId" | "financeAccountId">,
   actorChildId: string,
 ): boolean {
-  return entry.childId === actorChildId && entry.createdByChildId === actorChildId;
+  return !entry.financeAccountId && entry.childId === actorChildId && entry.createdByChildId === actorChildId;
 }
 
 export async function createChildLedgerEntry(formData: FormData) {
   const context = await requireFamilyContext();
   const parsed = ledgerEntrySchema.safeParse({
     childId: formData.get("childId")?.toString(),
+    financeAccountId: formData.get("financeAccountId")?.toString(),
     amount: formData.get("amount")?.toString(),
     direction: formData.get("direction")?.toString(),
     title: formData.get("title")?.toString(),
@@ -69,10 +73,16 @@ export async function createChildLedgerEntry(formData: FormData) {
   });
   if (!child) redirect("/app/kids?error=invalid-child");
 
+  const account = parsed.data.financeAccountId
+    ? await db.financeAccount.findFirst({ where: { id: parsed.data.financeAccountId, familyId: context.family.id, familyMemberId: child.id } })
+    : null;
+  if (parsed.data.financeAccountId && !account) redirect("/app/kids?error=invalid-account");
+
   await db.childLedgerEntry.create({
     data: {
       familyId: context.family.id,
       childId: child.id,
+      financeAccountId: account?.id ?? null,
       amountCents,
       direction: parsed.data.direction as MoneyDirection,
       title: parsed.data.title,
@@ -83,6 +93,17 @@ export async function createChildLedgerEntry(formData: FormData) {
       createdByChildId: child.id,
     },
   });
+
+  if (account) {
+    await bookMoneyTransaction({
+      familyId: context.family.id,
+      userId: context.user.id,
+      accountId: account.id,
+      type: parsed.data.direction === "EXPENSE" ? "loan" : "allowance",
+      title: parsed.data.title,
+      amountCents,
+    });
+  }
 
   revalidatePath("/app/kids");
   revalidatePath("/app/finance");
