@@ -1,10 +1,14 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
 import { getKidsTaskData } from "@/lib/dashboard";
-import { markKidsTaskDoneAction } from "./actions";
+import { formatCents } from "@/lib/finances";
+import { getKidsMoneyData, moneyOccurrenceStatusLabel, sumChildMoneyRules } from "@/lib/child-money";
+import { sumChildLedger } from "@/lib/child-ledger";
+import { createChildLedgerEntryAction, deleteChildLedgerEntryAction, markKidsTaskDoneAction } from "./actions";
 
 export default async function KidsPage() {
-  const { view } = await getKidsTaskData();
+  const [{ view }, moneyData] = await Promise.all([getKidsTaskData(), getKidsMoneyData()]);
 
   return (
     <div className="space-y-5">
@@ -28,7 +32,12 @@ export default async function KidsPage() {
       ) : null}
 
       <div className="space-y-4">
-        {view.children.map((child) => (
+        {view.children.map((child) => {
+          const moneyChild = moneyData.children.find((entry) => entry.id === child.id);
+          const visibleRules = moneyChild?.moneyRules ?? [];
+          const occurrences = moneyChild?.moneyOccurrences ?? [];
+          const ledgerEntries = moneyChild?.childLedgerEntries ?? [];
+          return (
           <section key={child.id} className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-2xl" aria-hidden="true">
@@ -38,6 +47,26 @@ export default async function KidsPage() {
                 <h3 className="text-xl font-black text-slate-950">{child.name}</h3>
                 <p className="text-sm text-slate-500">{child.tasks.length === 0 ? "Alles frei" : `${child.tasks.length} Aufgabe(n)`}</p>
               </div>
+            </div>
+
+            <div className="rounded-3xl bg-emerald-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Mein Geld diesen Monat</p>
+              <p className="mt-1 text-2xl font-black text-slate-950">{formatCents(sumChildMoneyRules(visibleRules))}</p>
+              {occurrences.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-600">Noch keine Geld-Bausteine eingestellt.</p>
+              ) : (
+                <div className="mt-3 grid gap-2">
+                  {occurrences.map((occurrence) => (
+                    <div key={occurrence.id} className="rounded-2xl bg-white px-3 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-bold text-slate-950">{occurrence.titleSnapshot}</p>
+                        <p className="font-black text-slate-950">{formatCents(occurrence.rule.direction === "EXPENSE" ? -occurrence.amountCentsSnapshot : occurrence.amountCentsSnapshot)}</p>
+                      </div>
+                      <p className="text-xs font-semibold text-slate-500">{occurrence.destinationSnapshot || "kein Ziel"} · {moneyOccurrenceStatusLabel(occurrence.status)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {child.tasks.length === 0 ? (
@@ -64,8 +93,55 @@ export default async function KidsPage() {
                 ))}
               </div>
             )}
+
+            <div className="rounded-3xl bg-sky-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Mein Haushaltsbuch</p>
+              <p className="mt-1 text-xl font-black text-slate-950">Saldo {formatCents(sumChildLedger(ledgerEntries))}</p>
+              <form action={createChildLedgerEntryAction} className="mt-3 space-y-3">
+                <input type="hidden" name="childId" value={child.id} />
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor={`direction-${child.id}`}>
+                    Art
+                    <select id={`direction-${child.id}`} name="direction" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950" defaultValue="EXPENSE">
+                      <option value="INCOME">Plus</option>
+                      <option value="EXPENSE">Ausgabe</option>
+                    </select>
+                  </label>
+                  <FormField label="Betrag" name="amount" inputMode="decimal" placeholder="2,00" required />
+                </div>
+                <FormField label="Wofür?" name="title" placeholder="Eis gekauft" required />
+                <div className="grid grid-cols-2 gap-2">
+                  <FormField label="Kategorie" name="categoryLabel" placeholder="Süßes" />
+                  <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor={`visibility-${child.id}`}>
+                    Sichtbarkeit
+                    <select id={`visibility-${child.id}`} name="visibility" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950" defaultValue="PARENT_VISIBLE">
+                      <option value="PARENT_VISIBLE">Eltern sichtbar</option>
+                      <option value="CHILD_PRIVATE">Privat</option>
+                    </select>
+                  </label>
+                </div>
+                <Button type="submit" className="min-h-11 w-full rounded-2xl font-black">Eintrag speichern</Button>
+              </form>
+              {ledgerEntries.length > 0 ? (
+                <div className="mt-3 grid gap-2">
+                  {ledgerEntries.map((entry) => (
+                    <div key={entry.id} className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2">
+                      <div>
+                        <p className="font-bold text-slate-950">{entry.title} · {formatCents(entry.direction === "EXPENSE" ? -entry.amountCents : entry.amountCents)}</p>
+                        <p className="text-xs font-semibold text-slate-500">{entry.visibility === "CHILD_PRIVATE" ? "privat" : "Eltern sichtbar"}</p>
+                      </div>
+                      <form action={deleteChildLedgerEntryAction}>
+                        <input type="hidden" name="entryId" value={entry.id} />
+                        <input type="hidden" name="childId" value={child.id} />
+                        <Button type="submit" className="min-h-10 px-3 text-sm">Löschen</Button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </section>
-        ))}
+        );})}
       </div>
     </div>
   );

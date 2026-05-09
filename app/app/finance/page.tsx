@@ -1,30 +1,48 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/button";
-import { createMoneyTransactionAction } from "@/app/app/finance/actions";
+import {
+  createMoneyRuleAction,
+  createMoneyTransactionAction,
+  deactivateMoneyRuleAction,
+  markMoneyOccurrenceStatusAction,
+} from "@/app/app/finance/actions";
 import {
   formatCents,
   getChildFinanceOverview,
   moneyTransactionLabel,
 } from "@/lib/finances";
+import { getChildMoneyOverview, moneyOccurrenceStatusLabel, sumChildMoneyRules } from "@/lib/child-money";
 
 function errorText(error?: string) {
   if (error === "invalid-amount") return "Bitte gib einen gültigen Betrag ein, z. B. 5 oder 5,50.";
   if (error === "invalid-member") return "Bitte wähle ein gültiges Kind aus.";
   if (error === "invalid-transaction") return "Bitte fülle alle Pflichtfelder aus.";
+  if (error === "invalid-money-rule") return "Bitte fülle Kind, Titel und Betrag aus.";
+  if (error === "invalid-money-status") return "Der Status konnte nicht gespeichert werden.";
   return null;
 }
+
+const statusOptions = [
+  ["OPEN", "Offen"],
+  ["PAID_CASH", "Bar"],
+  ["TRANSFERRED", "Überwiesen"],
+  ["SAVED", "Gespart"],
+  ["SKIPPED", "Ausgelassen"],
+] as const;
 
 export default async function FinancePage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const [{ accounts, transactions, totalBalanceCents }, params] = await Promise.all([
+  const [{ accounts, transactions, totalBalanceCents }, moneyOverview, params] = await Promise.all([
     getChildFinanceOverview(),
+    getChildMoneyOverview(),
     searchParams,
   ]);
   const error = errorText(params.error);
+  const activeRules = moneyOverview.rules.filter((rule) => rule.active);
 
   return (
     <div className="space-y-5">
@@ -33,6 +51,8 @@ export default async function FinancePage({
         <h2 className="mt-2 text-3xl font-bold">{formatCents(totalBalanceCents)}</h2>
         <p className="mt-2 text-sm text-emerald-50">Gesamtguthaben aller Kinderprofile</p>
       </section>
+
+      {error ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</p> : null}
 
       <section className="grid gap-3">
         {accounts.length === 0 ? (
@@ -63,33 +83,114 @@ export default async function FinancePage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Geldbewegung eintragen</CardTitle>
+          <CardTitle>Monatliches Geld zusammenstellen</CardTitle>
         </CardHeader>
         <CardContent>
+          <form action={createMoneyRuleAction} className="space-y-4">
+            <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="childId">
+              Kind
+              <select id="childId" name="childId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" required>
+                <option value="">Bitte wählen</option>
+                {moneyOverview.children.map((child) => <option key={child.id} value={child.id}>{child.name}</option>)}
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Baustein" name="title" placeholder="Essen gehen" required />
+              <FormField label="Betrag" name="amount" inputMode="decimal" placeholder="10,00" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="direction">
+                Art
+                <select id="direction" name="direction" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" defaultValue="INCOME">
+                  <option value="INCOME">Einnahme</option>
+                  <option value="EXPENSE">Ausgabe/Abzug</option>
+                </select>
+              </label>
+              <FormField label="Ziel" name="destinationLabel" placeholder="bar, Bank, Sparkonto" />
+            </div>
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+              <input type="checkbox" name="visibleToChild" defaultChecked className="h-4 w-4" />
+              Für Kind sichtbar
+            </label>
+            <Button className="w-full" type="submit" disabled={moneyOverview.children.length === 0}>Baustein speichern</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-3">
+        <h3 className="text-lg font-semibold text-slate-950">Taschengeld-Bausteine</h3>
+        {activeRules.length === 0 ? (
+          <Card><CardContent className="text-sm text-slate-600">Noch keine monatlichen Bausteine angelegt.</CardContent></Card>
+        ) : (
+          <div className="grid gap-3">
+            {moneyOverview.children.map((child) => {
+              const childRules = activeRules.filter((rule) => rule.childId === child.id);
+              if (childRules.length === 0) return null;
+              return (
+                <Card key={child.id}>
+                  <CardHeader><CardTitle>{child.name}: {formatCents(sumChildMoneyRules(childRules))}</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    {childRules.map((rule) => (
+                      <div key={rule.id} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
+                        <div>
+                          <p className="font-semibold text-slate-950">{rule.title} · {formatCents(rule.direction === "EXPENSE" ? -rule.amountCents : rule.amountCents)}</p>
+                          <p className="text-sm text-slate-500">{rule.destinationLabel || "kein Ziel"} · {rule.visibleToChild ? "sichtbar" : "versteckt"}</p>
+                        </div>
+                        <form action={deactivateMoneyRuleAction}>
+                          <input type="hidden" name="ruleId" value={rule.id} />
+                          <Button type="submit" className="min-h-10 px-3 text-sm">Aus</Button>
+                        </form>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="text-lg font-semibold text-slate-950">Aktueller Monat {moneyOverview.dueMonth}</h3>
+        <div className="grid gap-3">
+          {moneyOverview.occurrences.map((occurrence) => (
+            <Card key={occurrence.id}>
+              <CardContent className="space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-950">{occurrence.child.name}: {occurrence.titleSnapshot}</p>
+                    <p className="text-sm text-slate-500">{formatCents(occurrence.rule.direction === "EXPENSE" ? -occurrence.amountCentsSnapshot : occurrence.amountCentsSnapshot)} · {occurrence.destinationSnapshot || "kein Ziel"} · {moneyOccurrenceStatusLabel(occurrence.status)}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {statusOptions.map(([status, label]) => (
+                    <form action={markMoneyOccurrenceStatusAction} key={status}>
+                      <input type="hidden" name="occurrenceId" value={occurrence.id} />
+                      <input type="hidden" name="status" value={status} />
+                      <Button type="submit" className="min-h-10 px-3 text-sm">{label}</Button>
+                    </form>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <Card>
+        <CardHeader><CardTitle>Geldbewegung eintragen</CardTitle></CardHeader>
+        <CardContent>
           <form action={createMoneyTransactionAction} className="space-y-4">
-            {error ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</p> : null}
             <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="familyMemberId">
               Kind
-              <select
-                id="familyMemberId"
-                name="familyMemberId"
-                className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                required
-              >
+              <select id="familyMemberId" name="familyMemberId" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" required>
                 <option value="">Bitte wählen</option>
-                {accounts.map((account) => (
-                  <option key={account.familyMemberId} value={account.familyMemberId}>{account.member.name}</option>
-                ))}
+                {accounts.map((account) => <option key={account.familyMemberId} value={account.familyMemberId}>{account.member.name}</option>)}
               </select>
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="type">
               Art
-              <select
-                id="type"
-                name="type"
-                className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                defaultValue="allowance"
-              >
+              <select id="type" name="type" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" defaultValue="allowance">
                 <option value="allowance">Taschengeld / Plus</option>
                 <option value="loan">Leihe / Ausgabe</option>
                 <option value="repayment">Rückzahlung</option>
@@ -108,9 +209,7 @@ export default async function FinancePage({
       <section className="space-y-3">
         <h3 className="text-lg font-semibold text-slate-950">Verlauf</h3>
         {transactions.length === 0 ? (
-          <Card>
-            <CardContent className="text-sm text-slate-600">Noch keine Geldbewegungen eingetragen.</CardContent>
-          </Card>
+          <Card><CardContent className="text-sm text-slate-600">Noch keine Geldbewegungen eingetragen.</CardContent></Card>
         ) : (
           <div className="grid gap-3">
             {transactions.map((transaction) => (
