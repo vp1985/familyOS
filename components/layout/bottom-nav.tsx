@@ -8,6 +8,7 @@ const items = [
   { href: "/app/kids", label: "Kids", icon: "🧒" },
   { href: "/app/media", label: "Medien", icon: "📱" },
   { href: "/app/tasks", label: "Aufgaben", icon: "✅" },
+  { href: "/app/checklists", label: "Listen", icon: "🎒" },
   { href: "/app/tools", label: "Tools", icon: "🧰" },
   { href: "/app/projects", label: "Projekte", icon: "🧾" },
   { href: "/app/rules", label: "Regeln", icon: "📏" },

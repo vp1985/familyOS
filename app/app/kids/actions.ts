@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { updateTaskOccurrenceStatus } from "@/lib/tasks";
 import { createChildLedgerEntry, deleteChildLedgerEntry } from "@/lib/child-ledger";
+import { setChecklistItemChecked } from "@/lib/checklists";
 
 export async function markKidsTaskDoneAction(formData: FormData) {
   const occurrenceId = formData.get("occurrenceId")?.toString();
@@ -21,5 +22,16 @@ export async function createChildLedgerEntryAction(formData: FormData) {
 
 export async function deleteChildLedgerEntryAction(formData: FormData) {
   await deleteChildLedgerEntry(formData);
+  redirect("/app/kids");
+}
+
+export async function toggleKidsChecklistItemAction(formData: FormData) {
+  const itemId = formData.get("itemId")?.toString();
+  const checked = formData.get("checked")?.toString() === "true";
+  if (!itemId) redirect("/app/kids?error=invalid-checklist-item");
+  await setChecklistItemChecked(itemId, checked);
+  revalidatePath("/app/kids");
+  revalidatePath("/app/checklists");
+  revalidatePath("/app/tasks");
   redirect("/app/kids");
 }

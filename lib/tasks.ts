@@ -247,7 +247,7 @@ export async function getTasksPageData() {
     db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] }),
     db.taskOccurrence.findMany({
       where: { familyId: context.family.id },
-      include: { member: true, subtasks: { orderBy: { position: "asc" } } },
+      include: { member: true, subtasks: { orderBy: { position: "asc" } }, checklistInstances: { include: { items: true }, orderBy: { createdAt: "desc" } } },
       orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
       take: 80,
     }),

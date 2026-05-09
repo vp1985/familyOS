@@ -114,19 +114,30 @@ enum MediaRestrictionStatus {
   CANCELLED
 }
 
+enum ChecklistKind {
+  GENERAL
+  PACKING
+}
+
+enum ChecklistStatus {
+  OPEN
+  DONE
+  ARCHIVED
+}
+
 model User {
-  id                         String               @id @default(cuid())
-  email                      String               @unique
+  id                         String                  @id @default(cuid())
+  email                      String                  @unique
   name                       String
   passwordHash               String
-  createdAt                  DateTime             @default(now())
-  updatedAt                  DateTime             @updatedAt
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
   familyUsers                FamilyUser[]
   sessions                   Session[]
   createdMoneyTransactions   MoneyTransaction[]
-  createdMoneyRules          MoneyRule[]          @relation("MoneyRuleCreatedBy")
-  confirmedMoneyOccurrences  MoneyOccurrence[]    @relation("MoneyOccurrenceConfirmedBy")
-  createdChildLedgerEntries  ChildLedgerEntry[]   @relation("ChildLedgerEntryCreatedBy")
+  createdMoneyRules          MoneyRule[]             @relation("MoneyRuleCreatedBy")
+  confirmedMoneyOccurrences  MoneyOccurrence[]       @relation("MoneyOccurrenceConfirmedBy")
+  createdChildLedgerEntries  ChildLedgerEntry[]      @relation("ChildLedgerEntryCreatedBy")
   createdProjects            Project[]
   createdProjectExpenses     ProjectExpense[]
   createdRules               Rule[]
@@ -139,12 +150,15 @@ model User {
   createdBadgeAssignments    BadgeAssignment[]
   createdCalendarEvents      CalendarEvent[]
   createdCalendarSources     CalendarSource[]
-  createdTaskTemplates       TaskTemplate[]       @relation("TaskTemplateCreatedBy")
-  confirmedTaskOccurrences   TaskOccurrence[]     @relation("TaskOccurrenceConfirmedBy")
-  createdMediaAllowanceRules MediaAllowanceRule[] @relation("MediaAllowanceRuleCreatedBy")
-  createdMediaRestrictions   MediaRestriction[]   @relation("MediaRestrictionCreatedBy")
-  releasedMediaRestrictions  MediaRestriction[]   @relation("MediaRestrictionReleasedBy")
-  createdCompetitionPlayers  CompetitionPlayer[]  @relation("CompetitionPlayerCreatedBy")
+  createdTaskTemplates       TaskTemplate[]          @relation("TaskTemplateCreatedBy")
+  confirmedTaskOccurrences   TaskOccurrence[]        @relation("TaskOccurrenceConfirmedBy")
+  createdMediaAllowanceRules MediaAllowanceRule[]    @relation("MediaAllowanceRuleCreatedBy")
+  createdMediaRestrictions   MediaRestriction[]      @relation("MediaRestrictionCreatedBy")
+  releasedMediaRestrictions  MediaRestriction[]      @relation("MediaRestrictionReleasedBy")
+  createdCompetitionPlayers  CompetitionPlayer[]     @relation("CompetitionPlayerCreatedBy")
+  createdChecklistTemplates  ChecklistTemplate[]     @relation("ChecklistTemplateCreatedBy")
+  createdChecklistInstances  ChecklistInstance[]     @relation("ChecklistInstanceCreatedBy")
+  checkedChecklistItems      ChecklistItemInstance[] @relation("ChecklistItemCheckedBy")
 }
 
 model Session {
@@ -190,6 +204,8 @@ model Family {
   mediaAllowanceRules MediaAllowanceRule[]
   mediaRestrictions   MediaRestriction[]
   competitionPlayers  CompetitionPlayer[]
+  checklistTemplates  ChecklistTemplate[]
+  checklistInstances  ChecklistInstance[]
 }
 
 model FamilyUser {
@@ -241,6 +257,7 @@ model FamilyMember {
   taskOccurrences      TaskOccurrence[]
   mediaAllowanceRules  MediaAllowanceRule[]  @relation("MediaAllowanceRuleChild")
   mediaRestrictions    MediaRestriction[]    @relation("MediaRestrictionChild")
+  assignedChecklists   ChecklistInstance[]   @relation("ChecklistAssignedMember")
 
   @@index([familyId])
 }
@@ -709,11 +726,12 @@ model TaskTemplate {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  family      Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  createdBy   User             @relation("TaskTemplateCreatedBy", fields: [createdByUserId], references: [id])
-  assignments TaskAssignment[]
-  subtasks    TaskSubTask[]
-  occurrences TaskOccurrence[]
+  family             Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy          User                @relation("TaskTemplateCreatedBy", fields: [createdByUserId], references: [id])
+  assignments        TaskAssignment[]
+  subtasks           TaskSubTask[]
+  occurrences        TaskOccurrence[]
+  checklistInstances ChecklistInstance[]
 
   @@index([familyId, isActive])
   @@index([createdByUserId])
@@ -766,11 +784,12 @@ model TaskOccurrence {
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 
-  family       Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  taskTemplate TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
-  member       FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
-  confirmedBy  User?                   @relation("TaskOccurrenceConfirmedBy", fields: [confirmedByUserId], references: [id])
-  subtasks     TaskOccurrenceSubTask[]
+  family             Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  taskTemplate       TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
+  member             FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  confirmedBy        User?                   @relation("TaskOccurrenceConfirmedBy", fields: [confirmedByUserId], references: [id])
+  subtasks           TaskOccurrenceSubTask[]
+  checklistInstances ChecklistInstance[]
 
   @@index([familyId, dueAt])
   @@index([familyMemberId, dueAt])
@@ -788,6 +807,91 @@ model TaskOccurrenceSubTask {
   occurrence TaskOccurrence @relation(fields: [taskOccurrenceId], references: [id], onDelete: Cascade)
 
   @@index([taskOccurrenceId, position])
+}
+
+model ChecklistTemplate {
+  id              String        @id @default(cuid())
+  familyId        String
+  title           String
+  description     String?
+  category        String        @default("Alltag")
+  kind            ChecklistKind @default(GENERAL)
+  active          Boolean       @default(true)
+  createdByUserId String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  family    Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User                    @relation("ChecklistTemplateCreatedBy", fields: [createdByUserId], references: [id])
+  items     ChecklistTemplateItem[]
+  instances ChecklistInstance[]
+
+  @@index([familyId, active])
+  @@index([createdByUserId])
+}
+
+model ChecklistTemplateItem {
+  id            String   @id @default(cuid())
+  templateId    String
+  title         String
+  note          String?
+  quantityLabel String?
+  required      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  template ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, sortOrder])
+}
+
+model ChecklistInstance {
+  id                     String          @id @default(cuid())
+  familyId               String
+  templateId             String?
+  taskTemplateId         String?
+  taskOccurrenceId       String?
+  assignedFamilyMemberId String?
+  titleSnapshot          String
+  categorySnapshot       String          @default("Alltag")
+  kindSnapshot           ChecklistKind   @default(GENERAL)
+  status                 ChecklistStatus @default(OPEN)
+  createdByUserId        String
+  completedAt            DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  family         Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  template       ChecklistTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  taskTemplate   TaskTemplate?           @relation(fields: [taskTemplateId], references: [id], onDelete: SetNull)
+  taskOccurrence TaskOccurrence?         @relation(fields: [taskOccurrenceId], references: [id], onDelete: SetNull)
+  assignedMember FamilyMember?           @relation("ChecklistAssignedMember", fields: [assignedFamilyMemberId], references: [id], onDelete: SetNull)
+  createdBy      User                    @relation("ChecklistInstanceCreatedBy", fields: [createdByUserId], references: [id])
+  items          ChecklistItemInstance[]
+
+  @@index([familyId, status])
+  @@index([taskOccurrenceId])
+  @@index([assignedFamilyMemberId, status])
+  @@index([createdByUserId])
+}
+
+model ChecklistItemInstance {
+  id                    String    @id @default(cuid())
+  checklistInstanceId   String
+  titleSnapshot         String
+  noteSnapshot          String?
+  quantityLabelSnapshot String?
+  requiredSnapshot      Boolean   @default(true)
+  sortOrder             Int       @default(0)
+  checked               Boolean   @default(false)
+  checkedByUserId       String?
+  checkedAt             DateTime?
+
+  checklistInstance ChecklistInstance @relation(fields: [checklistInstanceId], references: [id], onDelete: Cascade)
+  checkedBy         User?             @relation("ChecklistItemCheckedBy", fields: [checkedByUserId], references: [id])
+
+  @@index([checklistInstanceId, sortOrder])
+  @@index([checkedByUserId])
 }
 
 model CalendarEvent {

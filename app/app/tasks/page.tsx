@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getTasksPageData, taskStatusLabels, type TaskStatus } from "@/lib/tasks";
+import { checklistProgressLabel } from "@/lib/checklists";
 import { confirmTaskOccurrenceAction, doneTaskOccurrenceAction, skipTaskOccurrenceAction, startTaskOccurrenceAction } from "./actions";
 
 function formatDate(date: Date | null) {
@@ -39,6 +40,13 @@ function TaskCard({ task }: { task: Awaited<ReturnType<typeof getTasksPageData>>
         <ul className="mt-3 grid gap-1 text-xs text-slate-600">
           {task.subtasks.map((subtask) => <li key={subtask.id}>• {subtask.titleSnapshot}</li>)}
         </ul>
+      ) : null}
+      {task.checklistInstances.length > 0 ? (
+        <div className="mt-3 grid gap-2">
+          {task.checklistInstances.map((list) => (
+            <p key={list.id} className="rounded-2xl bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-800">☑ {list.titleSnapshot}: {checklistProgressLabel(list.items)}</p>
+          ))}
+        </div>
       ) : null}
       {rewards ? <p className="mt-3 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">{rewards}</p> : null}
       <div className="mt-3 flex flex-wrap gap-2">

@@ -6,10 +6,11 @@ import { formatCents } from "@/lib/finances";
 import { getKidsMoneyData, moneyOccurrenceStatusLabel, sumChildMoneyRules } from "@/lib/child-money";
 import { sumChildLedger } from "@/lib/child-ledger";
 import { getKidsMediaData, mediaRestrictionStatusLabel, mediaTypeLabel } from "@/lib/media-time";
-import { createChildLedgerEntryAction, deleteChildLedgerEntryAction, markKidsTaskDoneAction } from "./actions";
+import { checklistProgressLabel, getKidsChecklistData } from "@/lib/checklists";
+import { createChildLedgerEntryAction, deleteChildLedgerEntryAction, markKidsTaskDoneAction, toggleKidsChecklistItemAction } from "./actions";
 
 export default async function KidsPage() {
-  const [{ view }, moneyData, mediaData] = await Promise.all([getKidsTaskData(), getKidsMoneyData(), getKidsMediaData()]);
+  const [{ view }, moneyData, mediaData, checklistData] = await Promise.all([getKidsTaskData(), getKidsMoneyData(), getKidsMediaData(), getKidsChecklistData()]);
 
   return (
     <div className="space-y-5">
@@ -40,6 +41,7 @@ export default async function KidsPage() {
           const ledgerEntries = moneyChild?.childLedgerEntries ?? [];
           const financeAccounts = moneyChild?.financeAccounts ?? [];
           const mediaSummary = mediaData.summaries.find((entry) => entry.childId === child.id);
+          const checklists = checklistData.instances.filter((entry) => entry.assignedFamilyMemberId === child.id || entry.taskOccurrence?.familyMemberId === child.id);
           return (
           <section key={child.id} className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
@@ -78,6 +80,37 @@ export default async function KidsPage() {
                   ))}
                 </div>
               ) : null}
+            </div>
+
+            <div className="rounded-3xl bg-teal-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-teal-700">Meine Checklisten</p>
+              {checklists.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-600">Keine aktive Liste.</p>
+              ) : (
+                <div className="mt-3 grid gap-3">
+                  {checklists.map((list) => (
+                    <div key={list.id} className="rounded-2xl bg-white p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-black text-slate-950">{list.titleSnapshot}</p>
+                          <p className="text-xs font-semibold text-slate-500">{checklistProgressLabel(list.items)}</p>
+                        </div>
+                        <span className="rounded-full bg-teal-100 px-2 py-1 text-xs font-bold text-teal-800">🎒</span>
+                      </div>
+                      <div className="mt-2 grid gap-2">
+                        {list.items.map((item) => (
+                          <form key={item.id} action={toggleKidsChecklistItemAction} className="flex items-center justify-between gap-2 rounded-2xl bg-slate-50 px-3 py-2">
+                            <input type="hidden" name="itemId" value={item.id} />
+                            <input type="hidden" name="checked" value={item.checked ? "false" : "true"} />
+                            <span className={item.checked ? "text-sm font-bold text-slate-400 line-through" : "text-sm font-bold text-slate-950"}>{item.titleSnapshot}{item.quantityLabelSnapshot ? ` · ${item.quantityLabelSnapshot}` : ""}</span>
+                            <Button type="submit" className="min-h-9 px-3 text-xs">{item.checked ? "↩" : "✓"}</Button>
+                          </form>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-3xl bg-emerald-50 p-4">
