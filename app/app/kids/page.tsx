@@ -5,10 +5,11 @@ import { getKidsTaskData } from "@/lib/dashboard";
 import { formatCents } from "@/lib/finances";
 import { getKidsMoneyData, moneyOccurrenceStatusLabel, sumChildMoneyRules } from "@/lib/child-money";
 import { sumChildLedger } from "@/lib/child-ledger";
+import { getKidsMediaData, mediaRestrictionStatusLabel, mediaTypeLabel } from "@/lib/media-time";
 import { createChildLedgerEntryAction, deleteChildLedgerEntryAction, markKidsTaskDoneAction } from "./actions";
 
 export default async function KidsPage() {
-  const [{ view }, moneyData] = await Promise.all([getKidsTaskData(), getKidsMoneyData()]);
+  const [{ view }, moneyData, mediaData] = await Promise.all([getKidsTaskData(), getKidsMoneyData(), getKidsMediaData()]);
 
   return (
     <div className="space-y-5">
@@ -37,6 +38,7 @@ export default async function KidsPage() {
           const visibleRules = moneyChild?.moneyRules ?? [];
           const occurrences = moneyChild?.moneyOccurrences ?? [];
           const ledgerEntries = moneyChild?.childLedgerEntries ?? [];
+          const mediaSummary = mediaData.summaries.find((entry) => entry.childId === child.id);
           return (
           <section key={child.id} className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">
             <div className="flex items-center gap-3">
@@ -47,6 +49,34 @@ export default async function KidsPage() {
                 <h3 className="text-xl font-black text-slate-950">{child.name}</h3>
                 <p className="text-sm text-slate-500">{child.tasks.length === 0 ? "Alles frei" : `${child.tasks.length} Aufgabe(n)`}</p>
               </div>
+            </div>
+
+            <div className="rounded-3xl bg-indigo-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">Meine Medienzeit</p>
+              {mediaSummary && mediaSummary.rules.length > 0 ? (
+                <div className="mt-2 grid gap-2">
+                  {mediaSummary.rules.map((rule) => (
+                    <div key={rule.id} className="rounded-2xl bg-white px-3 py-2">
+                      <p className="font-bold text-slate-950">{mediaTypeLabel(rule.mediaType)}</p>
+                      <p className="text-xs font-semibold text-slate-500">
+                        {rule.minutesPerDay !== null ? `${rule.minutesPerDay} Min./Tag` : ""}{rule.minutesPerDay !== null && rule.minutesPerWeek !== null ? " · " : ""}{rule.minutesPerWeek !== null ? `${rule.minutesPerWeek} Min./Woche` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-600">Noch keine Medienzeit eingestellt.</p>
+              )}
+              {mediaSummary && (mediaSummary.activeRestrictions.length > 0 || mediaSummary.expiredRestrictions.length > 0) ? (
+                <div className="mt-3 grid gap-2">
+                  {[...mediaSummary.activeRestrictions, ...mediaSummary.expiredRestrictions].map((restriction) => (
+                    <div key={restriction.id} className="rounded-2xl bg-white px-3 py-2">
+                      <p className="font-bold text-slate-950">{mediaTypeLabel(restriction.mediaType)}</p>
+                      <p className="text-xs font-semibold text-slate-500">{mediaRestrictionStatusLabel(mediaSummary.expiredRestrictions.some((entry) => entry.id === restriction.id) ? "ENDED" : restriction.status)} · wieder frei ab {new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(restriction.endsAt)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-3xl bg-emerald-50 p-4">

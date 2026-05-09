@@ -83,6 +83,28 @@ enum ConsequenceStatus {
   cancelled
 }
 
+enum MediaType {
+  PHONE
+  GAMING
+  WATCHING
+  TABLET
+  APP
+  OTHER
+}
+
+enum MediaRestrictionType {
+  BLOCKED
+  REDUCED
+  PARENT_APPROVAL_REQUIRED
+}
+
+enum MediaRestrictionStatus {
+  ACTIVE
+  ENDED
+  RELEASED
+  CANCELLED
+}
+
 model User {
   id                       String             @id @default(cuid())
   email                    String             @unique
@@ -110,6 +132,9 @@ model User {
   createdCalendarSources   CalendarSource[]
   createdTaskTemplates     TaskTemplate[]     @relation("TaskTemplateCreatedBy")
   confirmedTaskOccurrences TaskOccurrence[]   @relation("TaskOccurrenceConfirmedBy")
+  createdMediaAllowanceRules MediaAllowanceRule[] @relation("MediaAllowanceRuleCreatedBy")
+  createdMediaRestrictions MediaRestriction[] @relation("MediaRestrictionCreatedBy")
+  releasedMediaRestrictions MediaRestriction[] @relation("MediaRestrictionReleasedBy")
 }
 
 model Session {
@@ -152,6 +177,8 @@ model Family {
   calendarSources   CalendarSource[]
   taskTemplates     TaskTemplate[]
   taskOccurrences   TaskOccurrence[]
+  mediaAllowanceRules MediaAllowanceRule[]
+  mediaRestrictions MediaRestriction[]
 }
 
 model FamilyUser {
@@ -201,6 +228,8 @@ model FamilyMember {
   calendarSources      CalendarSource[]
   taskAssignments      TaskAssignment[]
   taskOccurrences      TaskOccurrence[]
+  mediaAllowanceRules  MediaAllowanceRule[] @relation("MediaAllowanceRuleChild")
+  mediaRestrictions    MediaRestriction[] @relation("MediaRestrictionChild")
 
   @@index([familyId])
 }
@@ -422,6 +451,7 @@ model RuleEvent {
   member       FamilyMember  @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
   createdBy    User          @relation(fields: [createdByUserId], references: [id])
   consequences Consequence[]
+  mediaRestrictions MediaRestriction[]
 
   @@index([familyId, occurredAt])
   @@index([ruleId, occurredAt])
@@ -451,6 +481,65 @@ model Consequence {
   @@index([familyMemberId, status])
   @@index([ruleEventId])
   @@index([createdByUserId])
+}
+
+model MediaAllowanceRule {
+  id              String    @id @default(cuid())
+  familyId        String
+  childId         String?
+  mediaType       MediaType
+  minAgeYears     Int?
+  minutesPerDay   Int?
+  minutesPerWeek  Int?
+  daysOfWeekJson  String?
+  note            String?
+  active          Boolean   @default(true)
+  createdByUserId String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  family    Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child     FamilyMember? @relation("MediaAllowanceRuleChild", fields: [childId], references: [id], onDelete: Cascade)
+  createdBy User          @relation("MediaAllowanceRuleCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([familyId, active])
+  @@index([childId, active])
+  @@index([mediaType, minAgeYears])
+  @@index([createdByUserId])
+}
+
+model MediaRestriction {
+  id               String                 @id @default(cuid())
+  familyId         String
+  childId          String
+  mediaType        MediaType
+  appOrDeviceLabel String?
+  restrictionType  MediaRestrictionType
+  reducedMinutes   Int?
+  startsAt         DateTime
+  endsAt           DateTime
+  status           MediaRestrictionStatus @default(ACTIVE)
+  reasonNote       String?
+  ruleEventId      String?
+  remindAt         DateTime?
+  releasedAt       DateTime?
+  releasedByUserId String?
+  createdByUserId  String
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  family     Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child      FamilyMember @relation("MediaRestrictionChild", fields: [childId], references: [id], onDelete: Cascade)
+  ruleEvent  RuleEvent?   @relation(fields: [ruleEventId], references: [id], onDelete: SetNull)
+  createdBy  User         @relation("MediaRestrictionCreatedBy", fields: [createdByUserId], references: [id])
+  releasedBy User?        @relation("MediaRestrictionReleasedBy", fields: [releasedByUserId], references: [id])
+
+  @@index([familyId, status])
+  @@index([childId, status])
+  @@index([ruleEventId])
+  @@index([endsAt])
+  @@index([createdByUserId])
+  @@index([releasedByUserId])
 }
 
 model PointTransaction {
