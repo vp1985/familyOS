@@ -1,7 +1,25 @@
 import { ChessClock } from "@/components/tools/chess-clock";
 import { Stopwatch } from "@/components/tools/stopwatch";
+import { db } from "@/lib/db";
+import { requireFamilyContext } from "@/lib/family-context";
+import { buildChessPlayerOptions } from "@/lib/chess-competition";
 
-export default function ToolsPage() {
+export default async function ToolsPage() {
+  const { family } = await requireFamilyContext();
+  const [members, competitionPlayers] = await Promise.all([
+    db.familyMember.findMany({
+      where: { familyId: family.id },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.competitionPlayer.findMany({
+      where: { familyId: family.id },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const chessPlayers = buildChessPlayerOptions(members, competitionPlayers);
+
   return (
     <div className="space-y-5">
       <section className="rounded-[2rem] bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-5 text-white shadow-sm">
@@ -18,7 +36,7 @@ export default function ToolsPage() {
       </section>
 
       <Stopwatch />
-      <ChessClock />
+      <ChessClock players={chessPlayers} />
     </div>
   );
 }

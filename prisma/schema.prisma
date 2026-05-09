@@ -135,6 +135,7 @@ model User {
   createdMediaAllowanceRules MediaAllowanceRule[] @relation("MediaAllowanceRuleCreatedBy")
   createdMediaRestrictions MediaRestriction[] @relation("MediaRestrictionCreatedBy")
   releasedMediaRestrictions MediaRestriction[] @relation("MediaRestrictionReleasedBy")
+  createdCompetitionPlayers CompetitionPlayer[] @relation("CompetitionPlayerCreatedBy")
 }
 
 model Session {
@@ -179,6 +180,7 @@ model Family {
   taskOccurrences   TaskOccurrence[]
   mediaAllowanceRules MediaAllowanceRule[]
   mediaRestrictions MediaRestriction[]
+  competitionPlayers CompetitionPlayer[]
 }
 
 model FamilyUser {
@@ -540,6 +542,22 @@ model MediaRestriction {
   @@index([endsAt])
   @@index([createdByUserId])
   @@index([releasedByUserId])
+}
+
+model CompetitionPlayer {
+  id              String   @id @default(cuid())
+  familyId        String
+  name            String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("CompetitionPlayerCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([familyId, name])
+  @@index([familyId, name])
+  @@index([createdByUserId])
 }
 
 model PointTransaction {
