@@ -28,6 +28,9 @@ test("tools route exposes stopwatch and chess clock with common presets", () => 
   assert.match(chessClock, /Schwarz/);
   assert.match(chessClock, /Inkrement/);
   assert.match(chessClock, /Date\.now/);
+  assert.match(chessClock, /side !== "black"/);
+  assert.match(chessClock, /Schwarz drückt hier zum Start/);
+  assert.match(chessClock, /fixed inset-0 z-50/);
 
   assert.match(nav, /\/app\/tools/);
   assert.match(nav, /Tools/);
