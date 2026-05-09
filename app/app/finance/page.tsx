@@ -13,6 +13,7 @@ import {
   moneyTransactionLabel,
 } from "@/lib/finances";
 import { getChildMoneyOverview, moneyOccurrenceStatusLabel, sumChildMoneyRules } from "@/lib/child-money";
+import { sumChildLedger } from "@/lib/child-ledger";
 
 function errorText(error?: string) {
   if (error === "invalid-amount") return "Bitte gib einen gültigen Betrag ein, z. B. 5 oder 5,50.";
@@ -205,6 +206,30 @@ export default async function FinancePage({
           </form>
         </CardContent>
       </Card>
+
+      <section className="space-y-3">
+        <h3 className="text-lg font-semibold text-slate-950">Sichtbares Haushaltsbuch der Kinder</h3>
+        <div className="grid gap-3">
+          {moneyOverview.children.map((child) => (
+            <Card key={`ledger-${child.id}`}>
+              <CardHeader><CardTitle>{child.name}: {formatCents(sumChildLedger(child.childLedgerEntries))}</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                {child.childLedgerEntries.length === 0 ? (
+                  <p className="text-sm text-slate-600">Keine für Eltern sichtbaren Einträge.</p>
+                ) : child.childLedgerEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-2xl bg-slate-50 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-slate-950">{entry.title}</p>
+                      <p className="font-bold text-slate-950">{formatCents(entry.direction === "EXPENSE" ? -entry.amountCents : entry.amountCents)}</p>
+                    </div>
+                    <p className="text-sm text-slate-500">{entry.categoryLabel || "ohne Kategorie"}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
 
       <section className="space-y-3">
         <h3 className="text-lg font-semibold text-slate-950">Verlauf</h3>

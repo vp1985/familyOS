@@ -120,6 +120,13 @@ export async function getChildMoneyOverview() {
   const [children, rules, occurrences] = await Promise.all([
     db.familyMember.findMany({
       where: { familyId: context.family.id, role: "child" },
+      include: {
+        childLedgerEntries: {
+          where: { visibility: "PARENT_VISIBLE" },
+          orderBy: { occurredAt: "desc" },
+          take: 8,
+        },
+      },
       orderBy: { createdAt: "asc" },
     }),
     db.moneyRule.findMany({
