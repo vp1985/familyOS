@@ -205,7 +205,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
     if (status === "idle") {
       playClockFeedback("valid");
       setClockOpen(true);
-      setActiveSide(otherSide(side));
+      setActiveSide("white");
       setStatus("running");
       lastTickRef.current = null;
       return;

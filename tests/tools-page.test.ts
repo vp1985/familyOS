@@ -29,7 +29,8 @@ test("tools route exposes stopwatch and chess clock with common presets", () => 
   assert.match(chessClock, /Inkrement/);
   assert.match(chessClock, /Date\.now/);
   assert.match(chessClock, /setClockOpen\(true\)/);
-  assert.match(chessClock, /otherSide\(side\)/);
+  assert.match(chessClock, /setActiveSide\("white"\)/);
+  assert.match(chessClock, /setActiveSide\(otherSide\(side\)\)/);
   assert.match(chessClock, /Uhr starten/);
   assert.match(chessClock, /gameActive \? \(/);
   assert.match(chessClock, /fixed inset-0 z-50/);
