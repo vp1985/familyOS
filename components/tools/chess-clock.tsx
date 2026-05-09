@@ -73,6 +73,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
   const [statusBeforeEnd, setStatusBeforeEnd] = useState<ClockStatus>("idle");
   const [resultLabel, setResultLabel] = useState<string | null>(null);
   const lastTickRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (status !== "running") return undefined;
@@ -103,6 +104,37 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
   const whiteName = useMemo(() => playerName(players, whitePlayerId, "Weiß"), [players, whitePlayerId]);
   const blackName = useMemo(() => playerName(players, blackPlayerId, "Schwarz"), [players, blackPlayerId]);
   const gameActive = status !== "idle" && status !== "ended";
+
+  function playClockFeedback() {
+    if (typeof window === "undefined") return;
+    window.navigator.vibrate?.(18);
+
+    const AudioContextClass = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const context = audioContextRef.current ?? new AudioContextClass();
+    audioContextRef.current = context;
+    void context.resume();
+
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const now = context.currentTime;
+
+    oscillator.type = "square";
+    oscillator.frequency.setValueAtTime(920, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.06);
+    oscillator.addEventListener("ended", () => {
+      oscillator.disconnect();
+      gain.disconnect();
+    });
+  }
 
   function resetCounters() {
     setWhiteMoves(0);
@@ -154,6 +186,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
   }
 
   function switchTurn(side: Side) {
+    playClockFeedback();
     if (status === "flagged" || status === "ended" || endStep !== "none") return;
     if (status === "idle") {
       if (side !== "black") return;
