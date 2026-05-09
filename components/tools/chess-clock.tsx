@@ -106,9 +106,9 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
   const blackName = useMemo(() => playerName(players, blackPlayerId, "Schwarz"), [players, blackPlayerId]);
   const gameActive = clockOpen && status !== "ended";
 
-  function playClockFeedback() {
+  function playClockFeedback(kind: "valid" | "invalid" = "valid") {
     if (typeof window === "undefined") return;
-    window.navigator.vibrate?.(18);
+    window.navigator.vibrate?.(kind === "valid" ? 18 : [12, 24, 12]);
 
     const AudioContextClass = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
@@ -120,17 +120,19 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
     const now = context.currentTime;
+    const duration = kind === "valid" ? 0.06 : 0.14;
 
-    oscillator.type = "square";
-    oscillator.frequency.setValueAtTime(920, now);
+    oscillator.type = kind === "valid" ? "square" : "sawtooth";
+    oscillator.frequency.setValueAtTime(kind === "valid" ? 920 : 180, now);
+    if (kind === "invalid") oscillator.frequency.exponentialRampToValueAtTime(120, now + duration);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.12, now + 0.004);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+    gain.gain.linearRampToValueAtTime(kind === "valid" ? 0.12 : 0.16, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration - 0.005);
 
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start(now);
-    oscillator.stop(now + 0.06);
+    oscillator.stop(now + duration);
     oscillator.addEventListener("ended", () => {
       oscillator.disconnect();
       gain.disconnect();
@@ -196,16 +198,23 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
   }
 
   function switchTurn(side: Side) {
-    playClockFeedback();
-    if (status === "flagged" || status === "ended" || endStep !== "none") return;
+    if (status === "flagged" || status === "ended" || endStep !== "none") {
+      playClockFeedback("invalid");
+      return;
+    }
     if (status === "idle") {
+      playClockFeedback("valid");
       setClockOpen(true);
       setActiveSide(otherSide(side));
       setStatus("running");
       lastTickRef.current = null;
       return;
     }
-    if (status !== "running" || side !== activeSide) return;
+    if (status !== "running" || side !== activeSide) {
+      playClockFeedback("invalid");
+      return;
+    }
+    playClockFeedback("valid");
     const increment = incrementInput * 1000;
     if (side === "white") {
       setWhiteTime((time) => time + increment);

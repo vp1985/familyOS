@@ -37,7 +37,8 @@ test("tools route exposes stopwatch and chess clock with common presets", () => 
   assert.match(chessClock, /Weiterspielen/);
   assert.match(chessClock, /navigator\.vibrate/);
   assert.match(chessClock, /AudioContext/);
-  assert.match(chessClock, /oscillator\.type = "square"/);
+  assert.match(chessClock, /playClockFeedback\("invalid"\)/);
+  assert.match(chessClock, /oscillator\.type = kind === "valid" \? "square" : "sawtooth"/);
 
   assert.match(nav, /\/app\/tools/);
   assert.match(nav, /Tools/);
