@@ -209,25 +209,25 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
             <p className="mt-1 text-sm text-slate-600">Spieler auswählen, Gastnamen speichern und dann ablenkungsfrei spielen.</p>
           </div>
 
-          <div className="grid gap-3 rounded-3xl bg-slate-50 p-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <label className="grid gap-1 text-xs font-semibold text-slate-600">
+          <div className="grid gap-3 overflow-hidden rounded-3xl bg-slate-50 p-3">
+            <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+              <label className="grid min-w-0 gap-1 text-xs font-semibold text-slate-600">
                 Weiß unten
-                <select value={whitePlayerId} onChange={(event) => setWhitePlayerId(event.target.value)} className="min-h-11 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950">
+                <select value={whitePlayerId} onChange={(event) => setWhitePlayerId(event.target.value)} className="min-h-11 w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950">
                   <option value="">Weiß</option>
                   {players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
                 </select>
               </label>
-              <label className="grid gap-1 text-xs font-semibold text-slate-600">
+              <label className="grid min-w-0 gap-1 text-xs font-semibold text-slate-600">
                 Schwarz oben
-                <select value={blackPlayerId} onChange={(event) => setBlackPlayerId(event.target.value)} className="min-h-11 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950">
+                <select value={blackPlayerId} onChange={(event) => setBlackPlayerId(event.target.value)} className="min-h-11 w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950">
                   <option value="">Schwarz</option>
                   {players.map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
                 </select>
               </label>
             </div>
-            <form action={createCompetitionPlayerAction} className="grid grid-cols-[1fr_auto] gap-2">
-              <input name="name" minLength={2} maxLength={80} placeholder="Gastnamen hinzufügen" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950" />
+            <form action={createCompetitionPlayerAction} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2">
+              <input name="name" minLength={2} maxLength={80} placeholder="Gastnamen hinzufügen" className="min-h-11 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-3 text-base text-slate-950" />
               <button type="submit" className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white">Speichern</button>
             </form>
           </div>
