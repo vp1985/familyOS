@@ -286,10 +286,17 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
             </label>
             <button type="button" onClick={applyCustom} className="self-end rounded-2xl bg-slate-950 px-3 py-3 text-sm font-bold text-white">Setzen</button>
           </div>
+
+          {status === "idle" ? (
+            <button type="button" onClick={() => switchTurn("black")} className="w-full rounded-[2rem] bg-slate-950 px-5 py-5 text-lg font-black text-white shadow-sm">
+              Uhr starten
+            </button>
+          ) : null}
         </div>
       ) : null}
 
-      <div className={gameActive ? "fixed inset-0 z-50 grid h-[100dvh] grid-rows-[1fr_auto_1fr] overflow-hidden bg-white" : "grid gap-3"}>
+      {gameActive ? (
+      <div className="fixed inset-0 z-50 grid h-[100dvh] grid-rows-[1fr_auto_1fr] overflow-hidden bg-white">
         <button
           type="button"
           onClick={() => switchTurn("black")}
@@ -301,17 +308,17 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
             <span>{activeSide === "black" ? "⌛" : ""}</span>
           </span>
           <span className={`${gameActive ? "mt-8 text-6xl sm:text-7xl" : "mt-3 text-4xl"} block font-mono font-black tabular-nums text-white`}>{formatClock(blackTime)}</span>
-          <span className="mt-4 block text-sm font-bold text-slate-300">{status === "idle" ? "Schwarz drückt hier zum Start – Weiß läuft zuerst." : `Züge: ${blackMoves}`}</span>
+          <span className="mt-4 block text-sm font-bold text-slate-300">Züge: {blackMoves}</span>
         </button>
 
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 bg-white px-3 py-2 text-center shadow-sm">
-          <button type="button" onClick={pauseResume} disabled={status === "ended"} className="rounded-2xl bg-slate-100 px-3 py-3 text-sm font-black text-slate-950 disabled:opacity-40">
+          <button type="button" onClick={pauseResume} className="rounded-2xl bg-slate-100 px-3 py-3 text-sm font-black text-slate-950 disabled:opacity-40">
             {status === "running" ? "Pause" : "Weiter"}
           </button>
           <div className="min-w-20 rounded-2xl bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white" aria-label="Gesamtzeit">
             {formatTotal(elapsedMs)}
           </div>
-          <button type="button" onClick={requestEnd} disabled={status === "idle" || status === "ended"} className="rounded-2xl bg-rose-100 px-3 py-3 text-sm font-black text-rose-700 disabled:opacity-40">
+          <button type="button" onClick={requestEnd} className="rounded-2xl bg-rose-100 px-3 py-3 text-sm font-black text-rose-700 disabled:opacity-40">
             Abbrechen
           </button>
         </div>
@@ -327,9 +334,10 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
             <span>{activeSide === "white" ? "⌛" : ""}</span>
           </span>
           <span className={`${gameActive ? "mt-8 text-6xl sm:text-7xl" : "mt-3 text-4xl"} block font-mono font-black tabular-nums text-slate-950`}>{formatClock(whiteTime)}</span>
-          <span className="mt-4 block text-sm font-bold text-slate-600">{status === "idle" ? "Weiß zieht zuerst. Zug zählt erst nach dem Drücken nach dem Zug." : `Züge: ${whiteMoves}`}</span>
+          <span className="mt-4 block text-sm font-bold text-slate-600">Züge: {whiteMoves}</span>
         </button>
       </div>
+      ) : null}
 
       {status === "flagged" ? <p className="rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{flaggedLabel}</p> : null}
       {resultLabel ? <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">Ergebnis: {resultLabel}</p> : null}
