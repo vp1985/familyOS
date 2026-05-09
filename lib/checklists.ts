@@ -153,6 +153,23 @@ export const checklistCatalog: ChecklistCatalogTemplate[] = [
       { title: "Lesen / Ruhezeit", required: false },
     ],
   },
+  {
+    id: "kuechendienst",
+    title: "Küchendienst",
+    description: "Wiederverwendbare Checkliste nach dem Essen oder für den Familiendienst.",
+    category: "Haushalt",
+    kind: "GENERAL",
+    items: [
+      { title: "Tisch abräumen" },
+      { title: "Essensreste entsorgen oder wegstellen" },
+      { title: "Geschirr in Spülmaschine / Spüle räumen" },
+      { title: "Arbeitsfläche und Tisch abwischen" },
+      { title: "Herd prüfen und bei Bedarf abwischen" },
+      { title: "Boden kurz fegen", required: false },
+      { title: "Lappen ausspülen und aufhängen" },
+      { title: "Müll prüfen", note: "Wenn voll: Bescheid sagen oder rausbringen", required: false },
+    ],
+  },
 ];
 
 export function getChecklistCatalogTemplate(id: string) {

@@ -55,6 +55,7 @@ test("checklist catalog contains reusable templates for outings, vacation and ro
   assert.ok(ids.includes("ausflug-tagesrucksack"));
   assert.ok(ids.includes("urlaub-kinderkoffer"));
   assert.ok(ids.includes("morgenroutine"));
+  assert.ok(ids.includes("kuechendienst"));
   assert.ok(checklistCatalog.every((template) => template.items.length >= 5));
 });
 
