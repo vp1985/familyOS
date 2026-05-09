@@ -308,10 +308,11 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
             {endStep === "confirm" ? (
               <div className="space-y-4">
                 <h4 className="text-xl font-black text-slate-950">Partie wirklich beenden?</h4>
-                <p className="text-sm text-slate-600">Die Uhr ist pausiert. Bei „Nein“ läuft es weiter wie vorher.</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={continueAfterCancel} className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-950">Nein</button>
-                  <button type="button" onClick={() => setEndStep("result")} className="rounded-2xl bg-rose-600 px-4 py-3 text-sm font-bold text-white">Ja</button>
+                <p className="text-sm text-slate-600">Die Uhr ist pausiert. Du kannst weiterspielen, nur den Timer auf die gleichen Einstellungen zurücksetzen oder die Partie beenden.</p>
+                <div className="grid gap-2">
+                  <button type="button" onClick={continueAfterCancel} className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-bold text-slate-950">Weiterspielen</button>
+                  <button type="button" onClick={reset} className="rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white">Timer zurücksetzen</button>
+                  <button type="button" onClick={() => setEndStep("result")} className="rounded-2xl bg-rose-600 px-4 py-3 text-sm font-bold text-white">Partie beenden</button>
                 </div>
               </div>
             ) : (
