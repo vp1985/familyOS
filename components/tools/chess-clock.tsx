@@ -64,6 +64,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
   const [blackTime, setBlackTime] = useState(toMilliseconds(5));
   const [activeSide, setActiveSide] = useState<Side>("white");
   const [status, setStatus] = useState<ClockStatus>("idle");
+  const [clockOpen, setClockOpen] = useState(false);
   const [whiteMoves, setWhiteMoves] = useState(0);
   const [blackMoves, setBlackMoves] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -103,7 +104,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
 
   const whiteName = useMemo(() => playerName(players, whitePlayerId, "Weiß"), [players, whitePlayerId]);
   const blackName = useMemo(() => playerName(players, blackPlayerId, "Schwarz"), [players, blackPlayerId]);
-  const gameActive = status !== "idle" && status !== "ended";
+  const gameActive = clockOpen && status !== "ended";
 
   function playClockFeedback() {
     if (typeof window === "undefined") return;
@@ -150,6 +151,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
     setBlackTime(toMilliseconds(preset.minutes));
     setActiveSide("white");
     setStatus("idle");
+    setClockOpen(false);
     setEndStep("none");
     resetCounters();
     lastTickRef.current = null;
@@ -164,6 +166,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
     setBlackTime(toMilliseconds(safeMinutes));
     setActiveSide("white");
     setStatus("idle");
+    setClockOpen(false);
     setEndStep("none");
     resetCounters();
     lastTickRef.current = null;
@@ -180,8 +183,15 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
     setBlackTime(toMilliseconds(minutesInput));
     setActiveSide("white");
     setStatus("idle");
+    setClockOpen(false);
     setEndStep("none");
     resetCounters();
+    lastTickRef.current = null;
+  }
+
+  function openClock() {
+    setClockOpen(true);
+    setEndStep("none");
     lastTickRef.current = null;
   }
 
@@ -189,8 +199,8 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
     playClockFeedback();
     if (status === "flagged" || status === "ended" || endStep !== "none") return;
     if (status === "idle") {
-      if (side !== "black") return;
-      setActiveSide("white");
+      setClockOpen(true);
+      setActiveSide(otherSide(side));
       setStatus("running");
       lastTickRef.current = null;
       return;
@@ -210,7 +220,10 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
   }
 
   function requestEnd() {
-    if (status === "idle") return;
+    if (status === "idle") {
+      setClockOpen(false);
+      return;
+    }
     setStatusBeforeEnd(status);
     setStatus("paused");
     setEndStep("confirm");
@@ -288,7 +301,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
           </div>
 
           {status === "idle" ? (
-            <button type="button" onClick={() => switchTurn("black")} className="w-full rounded-[2rem] bg-slate-950 px-5 py-5 text-lg font-black text-white shadow-sm">
+            <button type="button" onClick={openClock} className="w-full rounded-[2rem] bg-slate-950 px-5 py-5 text-lg font-black text-white shadow-sm">
               Uhr starten
             </button>
           ) : null}
@@ -305,15 +318,15 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
         >
           <span className="flex items-center justify-between text-sm font-semibold text-slate-300">
             <span>Schwarz · {blackName}</span>
-            <span>{activeSide === "black" ? "⌛" : ""}</span>
+            <span>{status !== "idle" && activeSide === "black" ? "⌛" : ""}</span>
           </span>
           <span className={`${gameActive ? "mt-8 text-6xl sm:text-7xl" : "mt-3 text-4xl"} block font-mono font-black tabular-nums text-white`}>{formatClock(blackTime)}</span>
           <span className="mt-4 block text-sm font-bold text-slate-300">Züge: {blackMoves}</span>
         </button>
 
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 bg-white px-3 py-2 text-center shadow-sm">
-          <button type="button" onClick={pauseResume} className="rounded-2xl bg-slate-100 px-3 py-3 text-sm font-black text-slate-950 disabled:opacity-40">
-            {status === "running" ? "Pause" : "Weiter"}
+          <button type="button" onClick={pauseResume} disabled={status === "idle"} className="rounded-2xl bg-slate-100 px-3 py-3 text-sm font-black text-slate-950 disabled:opacity-40">
+            {status === "idle" ? "Bereit" : status === "running" ? "Pause" : "Weiter"}
           </button>
           <div className="min-w-20 rounded-2xl bg-slate-950 px-3 py-2 font-mono text-sm font-black text-white" aria-label="Gesamtzeit">
             {formatTotal(elapsedMs)}
@@ -331,7 +344,7 @@ export function ChessClock({ players }: { players: ChessPlayerOption[] }) {
         >
           <span className="flex items-center justify-between text-sm font-semibold text-slate-600">
             <span>Weiß · {whiteName}</span>
-            <span>{activeSide === "white" ? "⌛" : ""}</span>
+            <span>{status !== "idle" && activeSide === "white" ? "⌛" : ""}</span>
           </span>
           <span className={`${gameActive ? "mt-8 text-6xl sm:text-7xl" : "mt-3 text-4xl"} block font-mono font-black tabular-nums text-slate-950`}>{formatClock(whiteTime)}</span>
           <span className="mt-4 block text-sm font-bold text-slate-600">Züge: {whiteMoves}</span>
