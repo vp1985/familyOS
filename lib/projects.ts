@@ -266,6 +266,40 @@ export async function createProject(formData: FormData) {
   return project.id;
 }
 
+export async function voidProjectExpense(projectId: string, expenseId: string) {
+  const context = await requireFamilyAdmin();
+  const expense = await db.projectExpense.findFirst({
+    where: {
+      id: expenseId,
+      projectId,
+      familyId: context.family.id,
+    },
+    select: { id: true },
+  });
+
+  if (!expense) redirect(`/app/projects/${projectId}?error=expense-not-found`);
+
+  await db.projectExpense.update({
+    where: { id: expense.id },
+    data: { status: "voided" },
+  });
+}
+
+export async function updateProjectStatus(projectId: string, status: "active" | "done" | "archived") {
+  const context = await requireFamilyAdmin();
+  const project = await db.project.findFirst({
+    where: { id: projectId, familyId: context.family.id },
+    select: { id: true },
+  });
+
+  if (!project) redirect("/app/projects?error=not-found");
+
+  await db.project.update({
+    where: { id: project.id },
+    data: { status },
+  });
+}
+
 export async function createProjectExpense(projectId: string, formData: FormData) {
   const context = await requireFamilyAdmin();
   const parsed = parseExpenseInput({

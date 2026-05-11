@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   calculateProjectBalance,
@@ -51,6 +52,24 @@ test("splitEvenly distributes rounding cents deterministically", () => {
     { familyMemberId: "c", shareCents: 2500 },
     { familyMemberId: "d", shareCents: 2500 },
   ]);
+});
+
+test("project detail route exposes void and project status actions", () => {
+  const detailPage = readFileSync("app/app/projects/[projectId]/page.tsx", "utf8");
+  const actions = readFileSync("app/app/projects/actions.ts", "utf8");
+  const listPage = readFileSync("app/app/projects/page.tsx", "utf8");
+
+  assert.match(actions, /voidProjectExpenseAction/);
+  assert.match(detailPage, /voidProjectExpenseAction/);
+  assert.match(detailPage, /Stornieren/);
+  assert.match(detailPage, /storniert/);
+
+  assert.match(actions, /updateProjectStatusAction/);
+  assert.match(detailPage, /updateProjectStatusAction/);
+  assert.match(detailPage, /Abschließen/);
+  assert.match(detailPage, /Archivieren/);
+  assert.match(detailPage, /Abgeschlossen/);
+  assert.match(listPage, /statusLabel/);
 });
 
 test("calculateProjectBalance ignores voided expenses and computes net per member", () => {

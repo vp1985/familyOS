@@ -3,11 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCents } from "@/lib/money";
 import { getProjectDetail } from "@/lib/projects";
+import { updateProjectStatusAction, voidProjectExpenseAction } from "../actions";
 
 function balanceText(netCents: number) {
   if (netCents > 0) return `bekommt noch ${formatCents(netCents)}`;
   if (netCents < 0) return `offen: ${formatCents(Math.abs(netCents))}`;
   return "ausgeglichen";
+}
+
+function statusLabel(status: string) {
+  if (status === "done") return "Abgeschlossen";
+  if (status === "archived") return "Archiviert";
+  return "Aktiv";
 }
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
@@ -18,13 +25,30 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-emerald-600">Projekt</p>
+          <p className="text-sm font-medium text-emerald-600">Projekt · {statusLabel(project.status)}</p>
           <h2 className="text-2xl font-bold text-slate-950">{project.title}</h2>
           {project.description ? <p className="mt-1 text-sm text-slate-600">{project.description}</p> : null}
         </div>
-        <Button asChild className="shrink-0">
-          <Link href={`/app/projects/${project.id}/expenses/new`}>Ausgabe</Link>
-        </Button>
+        <div className="flex shrink-0 flex-col gap-2">
+          {project.status === "active" ? (
+            <form action={updateProjectStatusAction.bind(null, project.id, "done")}>
+              <Button type="submit" className="w-full">Abschließen</Button>
+            </form>
+          ) : null}
+          {project.status !== "archived" ? (
+            <form action={updateProjectStatusAction.bind(null, project.id, "archived")}>
+              <Button type="submit" className="w-full bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Archivieren</Button>
+            </form>
+          ) : null}
+          {project.status === "done" ? (
+            <form action={updateProjectStatusAction.bind(null, project.id, "active")}>
+              <Button type="submit" className="w-full bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">Reaktivieren</Button>
+            </form>
+          ) : null}
+          <Button asChild className="w-full">
+            <Link href={`/app/projects/${project.id}/expenses/new`}>Ausgabe</Link>
+          </Button>
+        </div>
       </div>
 
       <section className="rounded-3xl bg-emerald-600 p-5 text-white shadow-sm">
@@ -79,7 +103,19 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                       <p className="font-semibold text-slate-950">{expense.title}</p>
                       <p className="text-sm text-slate-500">Bezahlt von {expense.paidByMember.name}</p>
                     </div>
-                    <p className="font-bold text-slate-950">{formatCents(expense.amountCents)}</p>
+                    <div className="flex flex-col items-end gap-2">
+                      <p className="font-bold text-slate-950">{formatCents(expense.amountCents)}</p>
+                      {expense.status === "active" ? (
+                        <form action={voidProjectExpenseAction.bind(null, project.id, expense.id)}>
+                          <Button
+                            type="submit"
+                            className="min-h-9 rounded-xl bg-white px-3 py-1 text-xs text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                          >
+                            Stornieren
+                          </Button>
+                        </form>
+                      ) : null}
+                    </div>
                   </div>
                   <p className="text-xs text-slate-500">
                     Aufgeteilt auf {expense.shares.map((share) => share.member.name).join(", ")}

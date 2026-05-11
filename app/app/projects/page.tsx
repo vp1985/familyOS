@@ -5,6 +5,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatCents } from "@/lib/money";
 import { calculateProjectBalance, getProjectList } from "@/lib/projects";
 
+function statusLabel(status: string) {
+  if (status === "done") return "Abgeschlossen";
+  if (status === "archived") return "Archiviert";
+  return "Aktiv";
+}
+
 export default async function ProjectsPage() {
   const { projects } = await getProjectList();
 
@@ -52,6 +58,7 @@ export default async function ProjectsPage() {
               <Link key={project.id} href={`/app/projects/${project.id}`} className="block">
                 <Card>
                   <CardHeader>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">{statusLabel(project.status)}</p>
                     <CardTitle>{project.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-slate-600">
