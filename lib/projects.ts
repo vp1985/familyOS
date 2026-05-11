@@ -47,6 +47,14 @@ export type ProjectBalanceExpense = {
   shares: Array<{ familyMemberId: string; shareCents: number }>;
 };
 
+export type ProjectSettlementSuggestion = {
+  fromMemberId: string;
+  fromName: string;
+  toMemberId: string;
+  toName: string;
+  amountCents: number;
+};
+
 export type ProjectBalanceRow = {
   familyMemberId: string;
   name: string;
@@ -175,6 +183,44 @@ export function calculateProjectBalance({
   return { totalCents, rows };
 }
 
+export function buildProjectSettlementSuggestions(rows: ProjectBalanceRow[]): ProjectSettlementSuggestion[] {
+  const debtors = rows
+    .filter((row) => row.netCents < 0)
+    .map((row) => ({ ...row, remainingCents: Math.abs(row.netCents) }))
+    .sort((a, b) => b.remainingCents - a.remainingCents || a.name.localeCompare(b.name));
+  const creditors = rows
+    .filter((row) => row.netCents > 0)
+    .map((row) => ({ ...row, remainingCents: row.netCents }))
+    .sort((a, b) => b.remainingCents - a.remainingCents || a.name.localeCompare(b.name));
+
+  const suggestions: ProjectSettlementSuggestion[] = [];
+  let debtorIndex = 0;
+  let creditorIndex = 0;
+
+  while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
+    const debtor = debtors[debtorIndex];
+    const creditor = creditors[creditorIndex];
+    const amountCents = Math.min(debtor.remainingCents, creditor.remainingCents);
+
+    if (amountCents > 0) {
+      suggestions.push({
+        fromMemberId: debtor.familyMemberId,
+        fromName: debtor.name,
+        toMemberId: creditor.familyMemberId,
+        toName: creditor.name,
+        amountCents,
+      });
+    }
+
+    debtor.remainingCents -= amountCents;
+    creditor.remainingCents -= amountCents;
+    if (debtor.remainingCents === 0) debtorIndex += 1;
+    if (creditor.remainingCents === 0) creditorIndex += 1;
+  }
+
+  return suggestions;
+}
+
 export async function getProjectList() {
   const context = await requireFamilyContext();
   const projects = await db.project.findMany({
@@ -209,6 +255,10 @@ export async function getProjectDetail(projectId: string) {
         include: { paidByMember: true, shares: { include: { member: true } } },
         orderBy: { expenseDate: "desc" },
       },
+      settlements: {
+        include: { fromMember: true, toMember: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -232,7 +282,74 @@ export async function getProjectDetail(projectId: string) {
     })),
   });
 
-  return { context, project, balance };
+  const settlementSuggestions = buildProjectSettlementSuggestions(balance.rows);
+
+  return { context, project, balance, settlementSuggestions };
+}
+
+async function getFamilyScopedProjectWithBalance(projectId: string, familyId: string) {
+  const project = await db.project.findFirst({
+    where: { id: projectId, familyId },
+    include: {
+      participants: { include: { member: true }, orderBy: { createdAt: "asc" } },
+      expenses: { include: { shares: true } },
+    },
+  });
+
+  if (!project) return null;
+
+  const balance = calculateProjectBalance({
+    members: project.participants.map((participant) => ({ id: participant.member.id, name: participant.member.name })),
+    expenses: project.expenses.map((expense) => ({
+      id: expense.id,
+      status: expense.status,
+      amountCents: expense.amountCents,
+      paidByMemberId: expense.paidByMemberId,
+      shares: expense.shares.map((share) => ({ familyMemberId: share.familyMemberId, shareCents: share.shareCents })),
+    })),
+  });
+
+  return { project, balance };
+}
+
+export async function createProjectSettlementPlan(projectId: string) {
+  const context = await requireFamilyAdmin();
+  const detail = await getFamilyScopedProjectWithBalance(projectId, context.family.id);
+  if (!detail) redirect("/app/projects?error=not-found");
+
+  const existingOpen = await db.projectSettlement.count({
+    where: { projectId, familyId: context.family.id, status: "open" },
+  });
+  if (existingOpen > 0) return;
+
+  const suggestions = buildProjectSettlementSuggestions(detail.balance.rows);
+  if (suggestions.length === 0) return;
+
+  await db.projectSettlement.createMany({
+    data: suggestions.map((suggestion) => ({
+      familyId: context.family.id,
+      projectId: detail.project.id,
+      fromMemberId: suggestion.fromMemberId,
+      toMemberId: suggestion.toMemberId,
+      amountCents: suggestion.amountCents,
+      createdByUserId: context.user.id,
+    })),
+  });
+}
+
+export async function settleProjectSettlement(projectId: string, settlementId: string) {
+  const context = await requireFamilyAdmin();
+  const settlement = await db.projectSettlement.findFirst({
+    where: { id: settlementId, projectId, familyId: context.family.id },
+    select: { id: true },
+  });
+
+  if (!settlement) redirect(`/app/projects/${projectId}?error=settlement-not-found`);
+
+  await db.projectSettlement.update({
+    where: { id: settlement.id },
+    data: { status: "settled", settledAt: new Date() },
+  });
 }
 
 export async function createProject(formData: FormData) {

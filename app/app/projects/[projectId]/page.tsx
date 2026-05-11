@@ -3,7 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCents } from "@/lib/money";
 import { getProjectDetail } from "@/lib/projects";
-import { updateProjectStatusAction, voidProjectExpenseAction } from "../actions";
+import {
+  createProjectSettlementPlanAction,
+  settleProjectSettlementAction,
+  updateProjectStatusAction,
+  voidProjectExpenseAction,
+} from "../actions";
 
 function balanceText(netCents: number) {
   if (netCents > 0) return `bekommt noch ${formatCents(netCents)}`;
@@ -19,7 +24,9 @@ function statusLabel(status: string) {
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
-  const { project, balance } = await getProjectDetail(projectId);
+  const { project, balance, settlementSuggestions } = await getProjectDetail(projectId);
+  const openSettlements = project.settlements.filter((settlement) => settlement.status === "open");
+  const settledSettlements = project.settlements.filter((settlement) => settlement.status === "settled");
 
   return (
     <div className="space-y-5">
@@ -71,6 +78,67 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               <p className="mt-1 text-slate-500">Bezahlt {formatCents(row.paidCents)} · Anteil {formatCents(row.owedShareCents)}</p>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Abrechnung</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {openSettlements.length === 0 ? (
+            <>
+              {settlementSuggestions.length === 0 ? (
+                <p className="text-sm text-slate-600">Alles ausgeglichen. Keine Zahlung nötig.</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-600">Vorschläge für den Projektausgleich:</p>
+                  {settlementSuggestions.map((suggestion) => (
+                    <div
+                      key={`${suggestion.fromMemberId}-${suggestion.toMemberId}-${suggestion.amountCents}`}
+                      className="rounded-2xl bg-slate-50 p-3 text-sm"
+                    >
+                      <span className="font-semibold text-slate-950">{suggestion.fromName}</span> zahlt{" "}
+                      <span className="font-semibold text-slate-950">{suggestion.toName}</span>{" "}
+                      <span className="font-bold text-slate-950">{formatCents(suggestion.amountCents)}</span>
+                    </div>
+                  ))}
+                  <form action={createProjectSettlementPlanAction.bind(null, project.id)}>
+                    <Button type="submit" className="w-full">Ausgleich vorbereiten</Button>
+                  </form>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
+              {openSettlements.map((settlement) => (
+                <div key={settlement.id} className="rounded-2xl bg-amber-50 p-3 text-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p>
+                      <span className="font-semibold text-slate-950">{settlement.fromMember.name}</span> zahlt{" "}
+                      <span className="font-semibold text-slate-950">{settlement.toMember.name}</span>{" "}
+                      <span className="font-bold text-slate-950">{formatCents(settlement.amountCents)}</span>
+                    </p>
+                    <form action={settleProjectSettlementAction.bind(null, project.id, settlement.id)}>
+                      <Button type="submit" className="w-full bg-white text-slate-700 ring-1 ring-amber-200 hover:bg-amber-100 sm:w-auto">
+                        Bezahlt markieren
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {settledSettlements.length > 0 ? (
+            <div className="space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
+              <p className="font-medium text-slate-700">Erledigt</p>
+              {settledSettlements.map((settlement) => (
+                <p key={settlement.id}>
+                  {settlement.fromMember.name} → {settlement.toMember.name}: {formatCents(settlement.amountCents)} bezahlt
+                </p>
+              ))}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

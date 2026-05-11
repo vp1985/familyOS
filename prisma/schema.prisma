@@ -99,6 +99,11 @@ enum ProjectExpenseStatus {
   voided
 }
 
+enum ProjectSettlementStatus {
+  open
+  settled
+}
+
 enum ConsequenceStatus {
   active
   done
@@ -155,6 +160,7 @@ model User {
   createdChildLedgerEntries       ChildLedgerEntry[]        @relation("ChildLedgerEntryCreatedBy")
   createdProjects                 Project[]
   createdProjectExpenses          ProjectExpense[]
+  createdProjectSettlements       ProjectSettlement[]
   createdRules                    Rule[]
   createdRuleEvents               RuleEvent[]
   createdConsequences             Consequence[]
@@ -206,6 +212,7 @@ model Family {
   childLedgerEntries       ChildLedgerEntry[]
   projects                 Project[]
   projectExpenses          ProjectExpense[]
+  projectSettlements       ProjectSettlement[]
   rules                    Rule[]
   ruleEvents               RuleEvent[]
   consequences             Consequence[]
@@ -254,29 +261,31 @@ model FamilyMember {
   createdAt                  DateTime         @default(now())
   updatedAt                  DateTime         @updatedAt
 
-  family               Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  financeAccounts      FinanceAccount[]
-  moneyTransactions    MoneyTransaction[]
-  moneyRules           MoneyRule[]           @relation("MoneyRuleChild")
-  moneyOccurrences     MoneyOccurrence[]     @relation("MoneyOccurrenceChild")
-  childLedgerEntries   ChildLedgerEntry[]    @relation("ChildLedgerEntryChild")
-  createdLedgerEntries ChildLedgerEntry[]    @relation("ChildLedgerEntryCreatedByChild")
-  projectParticipants  ProjectParticipant[]
-  paidProjectExpenses  ProjectExpense[]      @relation("ProjectExpensePayer")
-  projectExpenseShares ProjectExpenseShare[]
-  ruleEvents           RuleEvent[]
-  consequences         Consequence[]
-  pointTransactions    PointTransaction[]
-  xpTransactions       XpTransaction[]
-  rewardRedemptions    RewardRedemption[]
-  badgeAssignments     BadgeAssignment[]
-  calendarEvents       CalendarEvent[]
-  calendarSources      CalendarSource[]
-  taskAssignments      TaskAssignment[]
-  taskOccurrences      TaskOccurrence[]
-  mediaAllowanceRules  MediaAllowanceRule[]  @relation("MediaAllowanceRuleChild")
-  mediaRestrictions    MediaRestriction[]    @relation("MediaRestrictionChild")
-  assignedChecklists   ChecklistInstance[]   @relation("ChecklistAssignedMember")
+  family                 Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  financeAccounts        FinanceAccount[]
+  moneyTransactions      MoneyTransaction[]
+  moneyRules             MoneyRule[]           @relation("MoneyRuleChild")
+  moneyOccurrences       MoneyOccurrence[]     @relation("MoneyOccurrenceChild")
+  childLedgerEntries     ChildLedgerEntry[]    @relation("ChildLedgerEntryChild")
+  createdLedgerEntries   ChildLedgerEntry[]    @relation("ChildLedgerEntryCreatedByChild")
+  projectParticipants    ProjectParticipant[]
+  paidProjectExpenses    ProjectExpense[]      @relation("ProjectExpensePayer")
+  projectExpenseShares   ProjectExpenseShare[]
+  projectSettlementsTo   ProjectSettlement[]   @relation("ProjectSettlementReceiver")
+  projectSettlementsFrom ProjectSettlement[]   @relation("ProjectSettlementPayer")
+  ruleEvents             RuleEvent[]
+  consequences           Consequence[]
+  pointTransactions      PointTransaction[]
+  xpTransactions         XpTransaction[]
+  rewardRedemptions      RewardRedemption[]
+  badgeAssignments       BadgeAssignment[]
+  calendarEvents         CalendarEvent[]
+  calendarSources        CalendarSource[]
+  taskAssignments        TaskAssignment[]
+  taskOccurrences        TaskOccurrence[]
+  mediaAllowanceRules    MediaAllowanceRule[]  @relation("MediaAllowanceRuleChild")
+  mediaRestrictions      MediaRestriction[]    @relation("MediaRestrictionChild")
+  assignedChecklists     ChecklistInstance[]   @relation("ChecklistAssignedMember")
 
   @@index([familyId])
 }
@@ -476,6 +485,7 @@ model Project {
   createdBy    User                 @relation(fields: [createdByUserId], references: [id])
   participants ProjectParticipant[]
   expenses     ProjectExpense[]
+  settlements  ProjectSettlement[]
 
   @@index([familyId, createdAt])
   @@index([createdByUserId])
@@ -531,6 +541,30 @@ model ProjectExpenseShare {
 
   @@unique([expenseId, familyMemberId])
   @@index([familyMemberId])
+}
+
+model ProjectSettlement {
+  id              String                  @id @default(cuid())
+  familyId        String
+  projectId       String
+  fromMemberId    String
+  toMemberId      String
+  amountCents     Int
+  status          ProjectSettlementStatus @default(open)
+  createdByUserId String
+  settledAt       DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  family     Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  project    Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromMember FamilyMember @relation("ProjectSettlementPayer", fields: [fromMemberId], references: [id], onDelete: Cascade)
+  toMember   FamilyMember @relation("ProjectSettlementReceiver", fields: [toMemberId], references: [id], onDelete: Cascade)
+  createdBy  User         @relation(fields: [createdByUserId], references: [id])
+
+  @@index([familyId, projectId, status])
+  @@index([fromMemberId])
+  @@index([toMemberId])
 }
 
 model Rule {

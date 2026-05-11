@@ -2,7 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createProject, createProjectExpense, updateProjectStatus, voidProjectExpense } from "@/lib/projects";
+import {
+  createProject,
+  createProjectExpense,
+  createProjectSettlementPlan,
+  settleProjectSettlement,
+  updateProjectStatus,
+  voidProjectExpense,
+} from "@/lib/projects";
 
 export async function createProjectAction(formData: FormData) {
   const projectId = await createProject(formData);
@@ -29,6 +36,22 @@ export async function voidProjectExpenseAction(projectId: string, expenseId: str
 
 export async function updateProjectStatusAction(projectId: string, status: "active" | "done" | "archived") {
   await updateProjectStatus(projectId, status);
+  revalidatePath("/app");
+  revalidatePath("/app/projects");
+  revalidatePath(`/app/projects/${projectId}`);
+  redirect(`/app/projects/${projectId}`);
+}
+
+export async function createProjectSettlementPlanAction(projectId: string) {
+  await createProjectSettlementPlan(projectId);
+  revalidatePath("/app");
+  revalidatePath("/app/projects");
+  revalidatePath(`/app/projects/${projectId}`);
+  redirect(`/app/projects/${projectId}`);
+}
+
+export async function settleProjectSettlementAction(projectId: string, settlementId: string) {
+  await settleProjectSettlement(projectId, settlementId);
   revalidatePath("/app");
   revalidatePath("/app/projects");
   revalidatePath(`/app/projects/${projectId}`);

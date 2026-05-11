@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  buildProjectSettlementSuggestions,
   calculateProjectBalance,
   parseExpenseInput,
   parseProjectInput,
@@ -120,4 +121,28 @@ test("calculateProjectBalance ignores voided expenses and computes net per membe
     { familyMemberId: "mia", name: "Mia", paidCents: 3000, owedShareCents: 4500, netCents: -1500 },
     { familyMemberId: "noah", name: "Noah", paidCents: 0, owedShareCents: 4500, netCents: -4500 },
   ]);
+});
+
+test("buildProjectSettlementSuggestions creates minimal payment suggestions", () => {
+  const suggestions = buildProjectSettlementSuggestions([
+    { familyMemberId: "papa", name: "Papa", paidCents: 9000, owedShareCents: 3000, netCents: 6000 },
+    { familyMemberId: "mia", name: "Mia", paidCents: 3000, owedShareCents: 4500, netCents: -1500 },
+    { familyMemberId: "noah", name: "Noah", paidCents: 0, owedShareCents: 4500, netCents: -4500 },
+  ]);
+
+  assert.deepEqual(suggestions, [
+    { fromMemberId: "noah", fromName: "Noah", toMemberId: "papa", toName: "Papa", amountCents: 4500 },
+    { fromMemberId: "mia", fromName: "Mia", toMemberId: "papa", toName: "Papa", amountCents: 1500 },
+  ]);
+});
+
+test("project detail route exposes settlement actions", () => {
+  const detailPage = readFileSync("app/app/projects/[projectId]/page.tsx", "utf8");
+  const actions = readFileSync("app/app/projects/actions.ts", "utf8");
+
+  assert.match(actions, /createProjectSettlementPlanAction/);
+  assert.match(actions, /settleProjectSettlementAction/);
+  assert.match(detailPage, /Abrechnung/);
+  assert.match(detailPage, /Ausgleich vorbereiten/);
+  assert.match(detailPage, /Bezahlt markieren/);
 });
