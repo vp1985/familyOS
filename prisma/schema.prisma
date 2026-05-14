@@ -143,6 +143,13 @@ enum ChecklistStatus {
   ARCHIVED
 }
 
+enum MealKind {
+  BREAKFAST
+  LUNCH
+  DINNER
+  UNSPECIFIED
+}
+
 model User {
   id                              String                    @id @default(cuid())
   email                           String                    @unique
@@ -180,6 +187,7 @@ model User {
   createdChecklistTemplates       ChecklistTemplate[]       @relation("ChecklistTemplateCreatedBy")
   createdChecklistInstances       ChecklistInstance[]       @relation("ChecklistInstanceCreatedBy")
   checkedChecklistItems           ChecklistItemInstance[]   @relation("ChecklistItemCheckedBy")
+  createdMealPlanEntries          MealPlanEntry[]           @relation("MealPlanEntryCreatedBy")
 }
 
 model Session {
@@ -230,6 +238,7 @@ model Family {
   competitionPlayers       CompetitionPlayer[]
   checklistTemplates       ChecklistTemplate[]
   checklistInstances       ChecklistInstance[]
+  mealPlanEntries          MealPlanEntry[]
 }
 
 model FamilyUser {
@@ -286,8 +295,33 @@ model FamilyMember {
   mediaAllowanceRules    MediaAllowanceRule[]  @relation("MediaAllowanceRuleChild")
   mediaRestrictions      MediaRestriction[]    @relation("MediaRestrictionChild")
   assignedChecklists     ChecklistInstance[]   @relation("ChecklistAssignedMember")
+  mealPlanEntries        MealPlanEntry[]
 
   @@index([familyId])
+}
+
+model MealPlanEntry {
+  id                 String   @id @default(cuid())
+  familyId           String
+  familyMemberId     String?
+  dishName           String
+  plannedDate        DateTime
+  mealKind           MealKind @default(UNSPECIFIED)
+  note               String?
+  sourceApp          String   @default("familyos")
+  visibleInNutrition Boolean  @default(true)
+  createdByUserId    String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  family    Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member    FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
+  createdBy User          @relation("MealPlanEntryCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([familyId, plannedDate])
+  @@index([familyMemberId, plannedDate])
+  @@index([createdByUserId])
+  @@index([visibleInNutrition])
 }
 
 model HouseholdBudgetPlanItem {
