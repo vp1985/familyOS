@@ -41,7 +41,7 @@ async function clearSessionCookie() {
   cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
-async function createSession(userId: string) {
+export async function createSession(userId: string) {
   const token = createSessionToken();
   const expiresAt = sessionExpiresAt();
 
