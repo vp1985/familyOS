@@ -6,6 +6,7 @@ import {
   parsePointTransactionInput,
   parseRewardInput,
   parseRewardRedemptionInput,
+  shouldShowBadgeToFamily,
 } from "../lib/gamification";
 
 test("parsePointTransactionInput normalizes member, reason and signed points", () => {
@@ -47,19 +48,29 @@ test("parseRewardRedemptionInput requires reward and member", () => {
   assert.deepEqual(parseRewardRedemptionInput({ rewardId: "reward-1", familyMemberId: "" }), { success: false });
 });
 
-test("parseBadgeAssignmentInput trims badge fields and requires member", () => {
-  assert.deepEqual(parseBadgeAssignmentInput({ familyMemberId: "mia", title: "  Mutig ", icon: " 🦁 ", description: "  Hilfe geholt " }), {
+test("parseBadgeAssignmentInput trims positive badge fields and rejects negative badges", () => {
+  assert.deepEqual(parseBadgeAssignmentInput({ familyMemberId: "mia", title: "  Mutig ", icon: " 🦁 ", description: "  Hilfe geholt ", visibility: "family" }), {
     familyMemberId: "mia",
     title: "Mutig",
     icon: "🦁",
     description: "Hilfe geholt",
+    visibility: "family",
   });
   assert.deepEqual(parseBadgeAssignmentInput({ familyMemberId: "mia", title: "Mutig" }), {
     familyMemberId: "mia",
     title: "Mutig",
     icon: "🏅",
     description: "",
+    visibility: "private",
   });
+  assert.deepEqual(parseBadgeAssignmentInput({ familyMemberId: "mia", title: "Unartig", tone: "negative" }), { success: false });
   assert.deepEqual(parseBadgeAssignmentInput({ familyMemberId: "", title: "Mutig" }), { success: false });
   assert.deepEqual(parseBadgeAssignmentInput({ familyMemberId: "mia", title: "" }), { success: false });
+});
+
+test("shouldShowBadgeToFamily only exposes positive badges when family setting allows it", () => {
+  assert.equal(shouldShowBadgeToFamily({ showPositiveBadgesToFamily: false }, { visibleToFamily: true, isPositive: true }), false);
+  assert.equal(shouldShowBadgeToFamily({ showPositiveBadgesToFamily: true }, { visibleToFamily: false, isPositive: true }), false);
+  assert.equal(shouldShowBadgeToFamily({ showPositiveBadgesToFamily: true }, { visibleToFamily: true, isPositive: true }), true);
+  assert.equal(shouldShowBadgeToFamily({ showPositiveBadgesToFamily: true }, { visibleToFamily: true, isPositive: false }), false);
 });

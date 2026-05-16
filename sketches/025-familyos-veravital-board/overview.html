@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FamilyOS · VeraVital Board Overview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Arial, Helvetica, sans-serif; color:#0f172a; background:#f8fafc; }
+    .poster { width:1280px; min-height:720px; padding:24px 28px; background:radial-gradient(circle at 5% 0%,#e0f2fe 0 18%,transparent 38%),radial-gradient(circle at 95% 0%,#ede9fe 0 18%,transparent 40%),#f8fafc; position:relative; overflow:hidden; }
+    header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; gap:24px; }
+    .eyebrow { font-size:12px; letter-spacing:.09em; text-transform:uppercase; font-weight:900; color:#0369a1; }
+    h1 { margin:4px 0 5px; font-size:34px; letter-spacing:-.045em; line-height:1.02; }
+    .sub { margin:0; max-width:760px; color:#64748b; font-size:15px; line-height:1.35; font-weight:700; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; max-width:390px; }
+    .chip { background:white; border:1px solid #e2e8f0; border-radius:999px; padding:8px 11px; font-size:12px; font-weight:900; color:#334155; box-shadow:0 6px 18px rgba(15,23,42,.05); }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+    .screen { height:585px; border-radius:34px; background:#020617; padding:10px; box-shadow:0 24px 70px rgba(15,23,42,.15); }
+    .inner { height:100%; border-radius:26px; background:#f8fafc; overflow:hidden; position:relative; padding:16px 16px 74px; }
+    .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+    .title { font-size:23px; font-weight:900; letter-spacing:-.04em; }
+    .meta { color:#64748b; font-size:12px; margin-top:2px; font-weight:700; }
+    .avatar { width:40px; height:40px; border-radius:16px; display:grid; place-items:center; color:white; font-weight:900; background:linear-gradient(135deg,#0ea5e9,#8b5cf6); }
+    .sync { display:flex; align-items:center; gap:7px; border:1px solid #e2e8f0; background:white; padding:8px 10px; border-radius:16px; color:#475569; font-size:12px; font-weight:800; margin-bottom:10px; }
+    .dot { width:8px; height:8px; border-radius:99px; background:#10b981; box-shadow:0 0 0 4px rgba(16,185,129,.13); }
+    .hero { border-radius:25px; padding:16px; color:white; background:linear-gradient(135deg,#0f172a,#334155); margin-bottom:11px; }
+    .hero .small { color:#bae6fd; text-transform:uppercase; letter-spacing:.08em; font-size:11px; font-weight:900; }
+    .hero-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:6px; }
+    .hero h2 { margin:0; font-size:28px; letter-spacing:-.05em; }
+    .hero p { margin:5px 0 0; color:#dbeafe; font-size:12px; line-height:1.32; font-weight:700; max-width:220px; }
+    .ice { width:56px; height:56px; border-radius:20px; display:grid; place-items:center; font-size:32px; background:rgba(255,255,255,.12); }
+    .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:12px; }
+    .mini { background:rgba(255,255,255,.12); border-radius:15px; padding:9px; }
+    .mini b { display:block; font-size:14px; } .mini span { display:block; color:#cbd5e1; font-size:10px; margin-top:2px; font-weight:700; }
+    .card { background:white; border:1px solid #e2e8f0; border-radius:23px; padding:12px; margin-bottom:10px; box-shadow:0 6px 16px rgba(15,23,42,.04); }
+    .card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+    .kid { display:flex; gap:9px; align-items:center; font-weight:900; font-size:16px; }
+    .face { width:34px; height:34px; border-radius:14px; display:grid; place-items:center; background:#fef3c7; }
+    .place { font-size:11px; font-weight:900; color:#475569; background:#f1f5f9; padding:6px 8px; border-radius:999px; }
+    .barline { display:grid; grid-template-columns:72px 1fr 48px; gap:8px; align-items:center; font-size:11px; font-weight:900; color:#475569; margin:7px 0; }
+    .track { height:8px; border-radius:99px; background:#e2e8f0; overflow:hidden; }
+    .fill { height:100%; border-radius:99px; }
+    .g { background:#10b981; } .b { background:#0ea5e9; } .a { background:#f59e0b; } .v { background:#8b5cf6; }
+    .hint { margin-top:10px; padding:9px 10px; border-radius:16px; font-size:12px; font-weight:900; line-height:1.25; }
+    .ok { background:#dcfce7; color:#065f46; } .warn { background:#fef3c7; color:#92400e; }
+    .rings { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:11px; }
+    .ring-card { background:white; border:1px solid #e2e8f0; border-radius:22px; padding:12px; text-align:center; }
+    .ring { --p:70; --c:#10b981; width:92px; height:92px; border-radius:50%; margin:0 auto 8px; background:conic-gradient(var(--c) calc(var(--p)*1%),#e2e8f0 0); display:grid; place-items:center; position:relative; }
+    .ring:after { content:""; position:absolute; width:64px; height:64px; background:white; border-radius:50%; }
+    .ring b { position:relative; z-index:1; font-size:17px; letter-spacing:-.04em; }
+    .cap { color:#64748b; font-size:11px; font-weight:900; }
+    .section { display:flex; justify-content:space-between; margin:12px 2px 8px; font-size:12px; color:#334155; font-weight:900; }
+    .macro-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+    .macro { border-radius:15px; padding:9px; font-size:11px; font-weight:900; }
+    .macro b { display:block; color:#0f172a; font-size:16px; } .softg{background:#dcfce7;color:#047857}.softb{background:#e0f2fe;color:#0369a1}.softa{background:#fef3c7;color:#92400e}.softv{background:#ede9fe;color:#6d28d9}
+    .row { display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; font-size:13px; font-weight:900; }
+    .row b { font-size:12px; }
+    .buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .btn { background:#0f172a; color:white; border-radius:16px; text-align:center; padding:11px 8px; font-size:12px; font-weight:900; }
+    .btn.secondary { background:white; color:#0f172a; border:1px solid #e2e8f0; }
+    .handover { border-radius:24px; padding:15px; background:linear-gradient(135deg,#fef3c7,#dcfce7); border:1px solid #fde68a; margin-bottom:11px; }
+    .handover small { color:#92400e; font-size:11px; letter-spacing:.08em; text-transform:uppercase; font-weight:900; }
+    .handover h2 { margin:4px 0; font-size:24px; letter-spacing:-.045em; }
+    .handover p { margin:0; font-size:12px; color:#475569; line-height:1.33; font-weight:800; }
+    .timeline { display:grid; gap:9px; }
+    .event { display:grid; grid-template-columns:32px 1fr; gap:9px; align-items:start; }
+    .event-dot { width:32px; height:32px; border-radius:13px; background:#e0f2fe; display:grid; place-items:center; }
+    .event-card { background:white; border:1px solid #e2e8f0; border-radius:18px; padding:10px; }
+    .event-card b { display:block; font-size:13px; } .event-card span { display:block; margin-top:2px; color:#64748b; font-size:11px; line-height:1.3; font-weight:700; }
+    .nav { position:absolute; left:0; right:0; bottom:0; background:rgba(255,255,255,.96); border-top:1px solid #e2e8f0; padding:8px 8px 10px; display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
+    .nav div { text-align:center; color:#64748b; border-radius:14px; padding:6px 2px; font-size:10px; font-weight:900; } .nav b { display:block; font-size:16px; } .nav .active { background:#dcfce7; color:#065f46; }
+    .note { position:absolute; right:28px; bottom:12px; color:#64748b; font-size:11px; font-weight:900; }
+  </style>
+</head>
+<body>
+  <div class="poster">
+    <header>
+      <div>
+        <div class="eyebrow">FamilyOS × VeraVital · Design-Skizze</div>
+        <h1>Elternboard: schnell entscheiden, sauber übergeben</h1>
+        <p class="sub">Mein Vorschlag: Dashboard beantwortet zuerst „Was muss ich jetzt wissen?“ — Details bleiben einklappbar und nur für Eltern sichtbar.</p>
+      </div>
+      <div class="chips"><span class="chip">👪 Elternsicht</span><span class="chip">🔒 Opt-in</span><span class="chip">🍦 Snack-Check</span><span class="chip">🔁 Co-Parenting</span></div>
+    </header>
+    <div class="grid">
+      <div class="screen"><div class="inner">
+        <div class="top"><div><div class="title">Familienboard</div><div class="meta">Heute · Sa, 16. Mai</div></div><div class="avatar">V</div></div>
+        <div class="sync"><span class="dot"></span> VeraVital Sync vor 8 Min · Elternsicht</div>
+        <div class="hero"><div class="small">Snack-Check</div><div class="hero-row"><div><h2>Eis passt noch</h2><p>260 kcal offen. Protein erfüllt, Aktivität stark.</p></div><div class="ice">🍦</div></div><div class="metrics"><div class="mini"><b>260</b><span>kcal offen</span></div><div class="mini"><b>72/70g</b><span>Protein</span></div><div class="mini"><b>48 min</b><span>aktiv</span></div></div></div>
+        <div class="card"><div class="card-head"><div class="kid"><div class="face">🧒</div>Kind 1</div><div class="place">bei Papa</div></div><div class="barline"><span>Kalorien</span><div class="track"><div class="fill g" style="width:86%"></div></div><span>1540/1800</span></div><div class="barline"><span>Protein</span><div class="track"><div class="fill b" style="width:100%"></div></div><span>72g ✅</span></div><div class="barline"><span>Aktivität</span><div class="track"><div class="fill a" style="width:80%"></div></div><span>48 min</span></div><div class="hint ok">Dessert okay, Abend eher leicht.</div></div>
+        <div class="hint warn">Kind 2: vor Süßem kurz Abendessen beachten.</div>
+        <div class="nav"><div><b>🏠</b>Start</div><div><b>🍽️</b>Essen</div><div class="active"><b>🔥</b>Routinen</div><div><b>🧒</b>Kids</div><div><b>⚙️</b>Setup</div></div>
+      </div></div>
+      <div class="screen"><div class="inner">
+        <div class="top"><div><div class="title">Kind 1</div><div class="meta">VeraVital · Stand 12:33</div></div><div class="avatar" style="background:linear-gradient(135deg,#f59e0b,#10b981)">🍦</div></div>
+        <div class="rings"><div class="ring-card"><div class="ring" style="--p:86;--c:#10b981"><b>260</b></div><div class="cap">kcal offen</div></div><div class="ring-card"><div class="ring" style="--p:100;--c:#0ea5e9"><b>103%</b></div><div class="cap">Protein</div></div></div>
+        <div class="section"><span>Makros heute</span><span>keine Essensliste</span></div>
+        <div class="card"><div class="macro-grid"><div class="macro softb"><b>72g</b>Protein</div><div class="macro softa"><b>178g</b>KH</div><div class="macro softv"><b>54g</b>Fett</div></div></div>
+        <div class="section"><span>Routinen</span><span>Heute</span></div>
+        <div class="card"><div class="row"><span>🥚 Genug Eiweiß</span><b style="color:#047857">erfüllt</b></div></div>
+        <div class="card"><div class="row"><span>🤝 Respektvoll sein</span><b style="color:#047857">unauffällig</b></div></div>
+        <div class="buttons"><div class="btn">Eis erlauben</div><div class="btn secondary">Übergabe-Notiz</div></div>
+        <div class="nav"><div><b>🏠</b>Start</div><div><b>🍽️</b>Essen</div><div class="active"><b>🔥</b>Routinen</div><div><b>🧒</b>Kids</div><div><b>⚙️</b>Setup</div></div>
+      </div></div>
+      <div class="screen"><div class="inner">
+        <div class="top"><div><div class="title">Übergabe</div><div class="meta">Geteiltes Familienboard</div></div><div class="avatar" style="background:linear-gradient(135deg,#8b5cf6,#0ea5e9)">🔁</div></div>
+        <div class="handover"><small>Aktuelle Betreuung</small><h2>Heute bei Papa</h2><p>Beide Eltern sehen denselben Tagesstand. Entscheidungen werden neutral dokumentiert.</p></div>
+        <div class="section"><span>Timeline heute</span><span>Elternsicht</span></div>
+        <div class="timeline"><div class="event"><div class="event-dot">🔄</div><div class="event-card"><b>12:33 · VeraVital Sync</b><span>Kalorien, Makros und Fitness aktualisiert.</span></div></div><div class="event"><div class="event-dot" style="background:#dcfce7">🍦</div><div class="event-card"><b>12:41 · Eis freigegeben</b><span>Grundlage: 260 kcal offen, Protein erfüllt.</span></div></div><div class="event"><div class="event-dot" style="background:#fef3c7">📝</div><div class="event-card"><b>Abends beachten</b><span>Leichtes Abendessen reicht. Kein Druck, nur Orientierung.</span></div></div><div class="event"><div class="event-dot" style="background:#ede9fe">🤝</div><div class="event-card"><b>Familienfeedback offen</b><span>Eltern finalisieren soziale Routine.</span></div></div></div>
+        <div class="nav"><div><b>🏠</b>Start</div><div><b>🍽️</b>Essen</div><div class="active"><b>🔥</b>Routinen</div><div><b>🧒</b>Kids</div><div><b>⚙️</b>Setup</div></div>
+      </div></div>
+    </div>
+    <div class="note">Nichts programmiert · nur Mockup · keine Echtdaten</div>
+  </div>
+</body>
+</html>

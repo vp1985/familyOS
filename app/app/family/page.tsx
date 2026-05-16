@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/button";
 import { createFamilyMemberAction, getFamilyMembers } from "@/lib/family-members";
+import { createChildAccountAction } from "@/lib/family-access";
 
 function roleLabel(role: string) {
   if (role === "child") return "Kind";
@@ -71,14 +72,36 @@ export default async function FamilyPage({
           <div className="grid gap-3">
             {members.map((member) => (
               <Card key={member.id}>
-                <CardContent className="flex items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-2xl" aria-hidden="true">
-                    {member.icon ?? "👤"}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-slate-950">{member.name}</p>
-                    <p className="text-sm text-slate-500">{roleLabel(member.role)}</p>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-2xl" aria-hidden="true">
+                      {member.icon ?? "👤"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-slate-950">{member.name}</p>
+                      <p className="text-sm text-slate-500">{roleLabel(member.role)}</p>
+                    </div>
                   </div>
+                  {member.role === "child" ? (
+                    <form action={createChildAccountAction} className="space-y-3 rounded-3xl bg-slate-50 p-4">
+                      <input type="hidden" name="familyMemberId" value={member.id} />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">Eigenes Kinderkonto</p>
+                        <p className="text-xs text-slate-500">
+                          Login über Familienname/Eltern-E-Mail + Kinder-Login + eigenes Passwort. Elternpasswort wird nie geteilt.
+                        </p>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <FormField label="Kinder-Login" name="loginName" placeholder={member.userAccounts[0]?.childLoginName ?? member.name.toLowerCase()} defaultValue={member.userAccounts[0]?.childLoginName ?? ""} required />
+                        <FormField label="Kinder-Passwort" name="password" type="password" minLength={8} placeholder="mind. 8 Zeichen" required />
+                      </div>
+                      <label className="flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="enabled" defaultChecked={member.userAccounts[0]?.childAccountEnabled ?? true} />
+                        Konto aktiv
+                      </label>
+                      <Button type="submit">Kinderkonto speichern</Button>
+                    </form>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}

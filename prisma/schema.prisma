@@ -11,6 +11,7 @@ enum FamilyUserRole {
   owner
   admin
   viewer
+  child
 }
 
 enum FamilyMemberRole {
@@ -205,56 +206,64 @@ model Session {
 }
 
 model Family {
-  id                       String                    @id @default(cuid())
-  name                     String
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
-  users                    FamilyUser[]
-  members                  FamilyMember[]
-  financeAccounts          FinanceAccount[]
-  householdBudgetPlanItems HouseholdBudgetPlanItem[]
-  householdBudgetEntries   HouseholdBudgetEntry[]
-  moneyTransactions        MoneyTransaction[]
-  moneyRules               MoneyRule[]
-  moneyOccurrences         MoneyOccurrence[]
-  childLedgerEntries       ChildLedgerEntry[]
-  projects                 Project[]
-  projectExpenses          ProjectExpense[]
-  projectSettlements       ProjectSettlement[]
-  rules                    Rule[]
-  ruleEvents               RuleEvent[]
-  consequences             Consequence[]
-  pointTransactions        PointTransaction[]
-  xpTransactions           XpTransaction[]
-  rewards                  Reward[]
-  rewardRedemptions        RewardRedemption[]
-  badgeAssignments         BadgeAssignment[]
-  calendarEvents           CalendarEvent[]
-  calendarSources          CalendarSource[]
-  taskTemplates            TaskTemplate[]
-  taskOccurrences          TaskOccurrence[]
-  mediaAllowanceRules      MediaAllowanceRule[]
-  mediaRestrictions        MediaRestriction[]
-  competitionPlayers       CompetitionPlayer[]
-  checklistTemplates       ChecklistTemplate[]
-  checklistInstances       ChecklistInstance[]
-  mealPlanEntries          MealPlanEntry[]
+  id                         String                    @id @default(cuid())
+  name                       String
+  loginSlug                  String?                   @unique
+  showPositiveBadgesToFamily Boolean                   @default(false)
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  users                      FamilyUser[]
+  members                    FamilyMember[]
+  financeAccounts            FinanceAccount[]
+  householdBudgetPlanItems   HouseholdBudgetPlanItem[]
+  householdBudgetEntries     HouseholdBudgetEntry[]
+  moneyTransactions          MoneyTransaction[]
+  moneyRules                 MoneyRule[]
+  moneyOccurrences           MoneyOccurrence[]
+  childLedgerEntries         ChildLedgerEntry[]
+  projects                   Project[]
+  projectExpenses            ProjectExpense[]
+  projectSettlements         ProjectSettlement[]
+  rules                      Rule[]
+  ruleEvents                 RuleEvent[]
+  consequences               Consequence[]
+  pointTransactions          PointTransaction[]
+  xpTransactions             XpTransaction[]
+  rewards                    Reward[]
+  rewardRedemptions          RewardRedemption[]
+  badgeAssignments           BadgeAssignment[]
+  calendarEvents             CalendarEvent[]
+  calendarSources            CalendarSource[]
+  taskTemplates              TaskTemplate[]
+  taskOccurrences            TaskOccurrence[]
+  mediaAllowanceRules        MediaAllowanceRule[]
+  mediaRestrictions          MediaRestriction[]
+  competitionPlayers         CompetitionPlayer[]
+  checklistTemplates         ChecklistTemplate[]
+  checklistInstances         ChecklistInstance[]
+  mealPlanEntries            MealPlanEntry[]
 }
 
 model FamilyUser {
-  id        String         @id @default(cuid())
-  familyId  String
-  userId    String
-  role      FamilyUserRole @default(viewer)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id                  String         @id @default(cuid())
+  familyId            String
+  userId              String
+  role                FamilyUserRole @default(viewer)
+  familyMemberId      String?
+  childLoginName      String?
+  childAccountEnabled Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  member FamilyMember? @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, userId])
+  @@unique([familyId, childLoginName])
   @@index([userId])
   @@index([familyId])
+  @@index([familyMemberId])
 }
 
 model FamilyMember {
@@ -271,6 +280,7 @@ model FamilyMember {
   updatedAt                  DateTime         @updatedAt
 
   family                 Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  userAccounts           FamilyUser[]
   financeAccounts        FinanceAccount[]
   moneyTransactions      MoneyTransaction[]
   moneyRules             MoneyRule[]           @relation("MoneyRuleChild")
@@ -824,6 +834,8 @@ model BadgeAssignment {
   title           String
   icon            String   @default("🏅")
   description     String?
+  isPositive      Boolean  @default(true)
+  visibleToFamily Boolean  @default(false)
   createdByUserId String
   createdAt       DateTime @default(now())
 

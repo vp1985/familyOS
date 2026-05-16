@@ -25,6 +25,8 @@ const badgeAssignmentInputSchema = z.object({
   title: z.string().trim().min(2),
   icon: z.string().trim().optional(),
   description: z.string().trim().optional(),
+  visibility: z.enum(["private", "family"]).default("private"),
+  tone: z.enum(["positive", "negative"]).default("positive"),
 });
 
 type InvalidInput = { success: false };
@@ -74,15 +76,25 @@ export function parseBadgeAssignmentInput(input: {
   title?: string;
   icon?: string;
   description?: string;
+  visibility?: "private" | "family";
+  tone?: "positive" | "negative";
 }) {
   const parsed = badgeAssignmentInputSchema.safeParse(input);
-  if (!parsed.success) return invalid();
+  if (!parsed.success || parsed.data.tone !== "positive") return invalid();
   return {
     familyMemberId: parsed.data.familyMemberId,
     title: parsed.data.title,
     icon: parsed.data.icon || "🏅",
     description: parsed.data.description ?? "",
+    visibility: parsed.data.visibility,
   };
+}
+
+export function shouldShowBadgeToFamily(
+  family: { showPositiveBadgesToFamily: boolean },
+  badge: { visibleToFamily: boolean; isPositive: boolean },
+) {
+  return family.showPositiveBadgesToFamily && badge.visibleToFamily && badge.isPositive;
 }
 
 export async function getGamificationDashboardData() {
@@ -185,12 +197,22 @@ export async function assignBadge(formData: FormData) {
     title: formData.get("badgeTitle")?.toString(),
     icon: formData.get("icon")?.toString(),
     description: formData.get("badgeDescription")?.toString(),
+    visibility: formData.get("visibility")?.toString() === "family" ? "family" : "private",
   });
   if (isInvalidInput(parsed)) redirect("/app/rewards?error=invalid-badge");
   const member = await requireMember(context.family.id, parsed.familyMemberId);
   if (!member) redirect("/app/rewards?error=invalid-member");
 
   await db.badgeAssignment.create({
-    data: { familyId: context.family.id, familyMemberId: parsed.familyMemberId, title: parsed.title, icon: parsed.icon, description: parsed.description || null, createdByUserId: context.user.id },
+    data: {
+      familyId: context.family.id,
+      familyMemberId: parsed.familyMemberId,
+      title: parsed.title,
+      icon: parsed.icon,
+      description: parsed.description || null,
+      isPositive: true,
+      visibleToFamily: shouldShowBadgeToFamily(context.family, { visibleToFamily: parsed.visibility === "family", isPositive: true }),
+      createdByUserId: context.user.id,
+    },
   });
 }

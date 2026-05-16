@@ -65,6 +65,12 @@ export async function getFamilyMembers() {
 
   const members = await db.familyMember.findMany({
     where: { familyId: context.family.id },
+    include: {
+      userAccounts: {
+        where: { role: "child" },
+        select: { id: true, childLoginName: true, childAccountEnabled: true },
+      },
+    },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
   });
 

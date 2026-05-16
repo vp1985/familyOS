@@ -10,14 +10,19 @@ function signed(points: number) {
 }
 
 export default async function RewardsPage() {
-  const { members, balances, pointTransactions, rewards, redemptions } = await getGamificationPageData();
+  const { context, members, balances, pointTransactions, rewards, redemptions } = await getGamificationPageData();
 
   return (
     <div className="space-y-5">
       <div>
         <p className="text-sm font-medium text-emerald-600">Motivation</p>
         <h2 className="text-2xl font-bold text-slate-950">Punkte & Belohnungen</h2>
-        <p className="mt-1 text-sm text-slate-600">Positive Entwicklung sichtbar machen: Punkte, Einlösungen und Badges.</p>
+        <p className="mt-1 text-sm text-slate-600">
+          Positive Entwicklung sichtbar machen: Punkte, Einlösungen und Badges. Negative Badges gibt es nicht.
+        </p>
+        <p className="mt-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Familienweite positive Badges: {context.family.showPositiveBadgesToFamily ? "aktiv" : "aus"}. Private Badges bleiben nur bei Eltern und Kind.
+        </p>
       </div>
 
       {members.length === 0 ? (
@@ -119,6 +124,14 @@ export default async function RewardsPage() {
               <FormField label="Badge" name="badgeTitle" placeholder="z. B. Mathe-Held" required />
             </div>
             <FormField label="Beschreibung optional" name="badgeDescription" placeholder="Warum wurde der Badge vergeben?" />
+            <label className="grid gap-2 text-sm font-medium text-slate-800" htmlFor="badge-visibility">
+              Sichtbarkeit
+              <select id="badge-visibility" name="visibility" defaultValue="private" className="min-h-11 rounded-2xl border border-slate-200 bg-white px-4 text-base text-slate-950 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100">
+                <option value="private">Nur Eltern und Kind</option>
+                <option value="family" disabled={!context.family.showPositiveBadgesToFamily}>Positiv familienweit zeigen</option>
+              </select>
+              <span className="text-xs font-normal text-slate-500">Familienweit ist nur möglich, wenn es in den Einstellungen aktiv ist.</span>
+            </label>
             <Button type="submit" disabled={members.length === 0}>Badge vergeben</Button>
           </form>
         </CardContent>
