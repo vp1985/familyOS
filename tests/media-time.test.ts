@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildEducationOptionsForMediaConversion,
   buildMediaSummaryForChild,
   isMediaRestrictionActive,
   mediaRestrictionStatusLabel,
+  mediaRestrictionTypeLabel,
   selectApplicableMediaRule,
 } from "../lib/media-time";
 
@@ -52,6 +54,57 @@ test("buildMediaSummaryForChild shows applicable rules and active restrictions",
   assert.equal(summary.ageYears, 10);
   assert.deepEqual(summary.rules.map((rule) => rule.id), ["phone"]);
   assert.deepEqual(summary.activeRestrictions.map((restriction) => restriction.id), ["block"]);
+});
+
+test("mediaRestrictionTypeLabel uses friendly German label for education conversion", () => {
+  assert.equal(mediaRestrictionTypeLabel("CONVERTED_TO_EDUCATION"), "in Fokuszeit umgebucht");
+});
+
+test("buildEducationOptionsForMediaConversion returns neutral focus options with same minutes", () => {
+  const options = buildEducationOptionsForMediaConversion(20);
+
+  assert.deepEqual(
+    options.map((option) => option.minutes),
+    [20, 20, 20, 20],
+  );
+  assert.deepEqual(
+    options.map((option) => option.key),
+    ["reading", "learning", "math", "vocabulary"],
+  );
+  assert.deepEqual(
+    options.map((option) => option.label),
+    ["20 Minuten lesen", "20 Minuten Lernzeit", "20 Minuten Mathe üben", "20 Minuten Vokabeln üben"],
+  );
+});
+
+test("buildMediaSummaryForChild exposes active education conversion restrictions neutrally", () => {
+  const now = new Date("2026-05-09T12:00:00.000Z");
+  const summary = buildMediaSummaryForChild(
+    { id: "child-1", birthday: new Date("2016-05-09T00:00:00.000Z") },
+    [],
+    [
+      {
+        id: "focus",
+        mediaType: "WATCHING",
+        status: "ACTIVE",
+        startsAt: new Date("2026-05-09T08:00:00.000Z"),
+        endsAt: new Date("2026-05-09T18:00:00.000Z"),
+        childId: "child-1",
+        restrictionType: "CONVERTED_TO_EDUCATION",
+        reducedMinutes: 20,
+        convertedToEducationMinutes: 20,
+        educationCategoryKey: "reading",
+        childVisibleReasonLabel: "Fokuszeit",
+      },
+    ],
+    now,
+  );
+
+  assert.equal(summary.activeRestrictions.length, 1);
+  assert.equal(summary.activeRestrictions[0].restrictionType, "CONVERTED_TO_EDUCATION");
+  assert.equal(summary.activeRestrictions[0].convertedToEducationMinutes, 20);
+  assert.equal(summary.activeRestrictions[0].educationCategoryKey, "reading");
+  assert.equal(summary.activeRestrictions[0].childVisibleReasonLabel, "Fokuszeit");
 });
 
 test("mediaRestrictionStatusLabel uses friendly German labels", () => {

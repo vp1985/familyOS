@@ -5,7 +5,7 @@ import { getKidsTaskData } from "@/lib/dashboard";
 import { childCashAccountNameSuggestions, canChildCreateCashAccount, formatCents } from "@/lib/finances";
 import { getKidsMoneyData, moneyOccurrenceStatusLabel, sumChildMoneyRules } from "@/lib/child-money";
 import { sumChildLedger } from "@/lib/child-ledger";
-import { getKidsMediaData, mediaRestrictionStatusLabel, mediaTypeLabel } from "@/lib/media-time";
+import { getKidsMediaData, educationCategoryLabel, mediaRestrictionStatusLabel, mediaTypeLabel } from "@/lib/media-time";
 import { checklistProgressLabel, getKidsChecklistData } from "@/lib/checklists";
 import { createChildCashAccountAction, createChildLedgerEntryAction, deleteChildLedgerEntryAction, markKidsTaskDoneAction, toggleKidsChecklistItemAction } from "./actions";
 
@@ -79,12 +79,25 @@ export default async function KidsPage() {
               )}
               {mediaSummary && (mediaSummary.activeRestrictions.length > 0 || mediaSummary.expiredRestrictions.length > 0) ? (
                 <div className="mt-3 grid gap-2">
-                  {[...mediaSummary.activeRestrictions, ...mediaSummary.expiredRestrictions].map((restriction) => (
+                  {[...mediaSummary.activeRestrictions, ...mediaSummary.expiredRestrictions].map((restriction) => {
+                    const isConverted = restriction.restrictionType === "CONVERTED_TO_EDUCATION";
+                    const minutes = restriction.convertedToEducationMinutes ?? restriction.reducedMinutes ?? 0;
+                    return (
                     <div key={restriction.id} className="rounded-2xl bg-white px-3 py-2">
-                      <p className="font-bold text-slate-950">{mediaTypeLabel(restriction.mediaType)}</p>
-                      <p className="text-xs font-semibold text-slate-500">{mediaRestrictionStatusLabel(mediaSummary.expiredRestrictions.some((entry) => entry.id === restriction.id) ? "ENDED" : restriction.status)} · wieder frei ab {new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(restriction.endsAt)}</p>
+                      {isConverted ? (
+                        <>
+                          <p className="font-bold text-slate-950">{restriction.childVisibleReasonLabel || "Fokuszeit"}</p>
+                          <p className="text-xs font-semibold text-slate-500">erst Fokuszeit, dann Medienzeit prüfen</p>
+                          <p className="text-xs font-semibold text-emerald-700">{minutes} Minuten · {educationCategoryLabel(restriction.educationCategoryKey)}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-bold text-slate-950">{mediaTypeLabel(restriction.mediaType)}</p>
+                          <p className="text-xs font-semibold text-slate-500">{mediaRestrictionStatusLabel(mediaSummary.expiredRestrictions.some((entry) => entry.id === restriction.id) ? "ENDED" : restriction.status)} · wieder frei ab {new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(restriction.endsAt)}</p>
+                        </>
+                      )}
                     </div>
-                  ))}
+                  );})}
                 </div>
               ) : null}
             </div>

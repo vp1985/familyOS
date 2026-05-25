@@ -124,6 +124,7 @@ enum MediaRestrictionType {
   BLOCKED
   REDUCED
   PARENT_APPROVAL_REQUIRED
+  CONVERTED_TO_EDUCATION
 }
 
 enum MediaRestrictionStatus {
@@ -703,33 +704,39 @@ model MediaAllowanceRule {
 }
 
 model MediaRestriction {
-  id               String                 @id @default(cuid())
-  familyId         String
-  childId          String
-  mediaType        MediaType
-  appOrDeviceLabel String?
-  restrictionType  MediaRestrictionType
-  reducedMinutes   Int?
-  startsAt         DateTime
-  endsAt           DateTime
-  status           MediaRestrictionStatus @default(ACTIVE)
-  reasonNote       String?
-  ruleEventId      String?
-  remindAt         DateTime?
-  releasedAt       DateTime?
-  releasedByUserId String?
-  createdByUserId  String
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  id                          String                 @id @default(cuid())
+  familyId                    String
+  childId                     String
+  mediaType                   MediaType
+  appOrDeviceLabel            String?
+  restrictionType             MediaRestrictionType
+  reducedMinutes              Int?
+  convertedToEducationMinutes Int?
+  educationCategoryKey        String?
+  linkedTaskOccurrenceId      String?
+  childVisibleReasonLabel     String?
+  startsAt                    DateTime
+  endsAt                      DateTime
+  status                      MediaRestrictionStatus @default(ACTIVE)
+  reasonNote                  String?
+  ruleEventId                 String?
+  remindAt                    DateTime?
+  releasedAt                  DateTime?
+  releasedByUserId            String?
+  createdByUserId             String
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
 
-  family     Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  child      FamilyMember @relation("MediaRestrictionChild", fields: [childId], references: [id], onDelete: Cascade)
-  ruleEvent  RuleEvent?   @relation(fields: [ruleEventId], references: [id], onDelete: SetNull)
-  createdBy  User         @relation("MediaRestrictionCreatedBy", fields: [createdByUserId], references: [id])
-  releasedBy User?        @relation("MediaRestrictionReleasedBy", fields: [releasedByUserId], references: [id])
+  family               Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child                FamilyMember    @relation("MediaRestrictionChild", fields: [childId], references: [id], onDelete: Cascade)
+  linkedTaskOccurrence TaskOccurrence? @relation("MediaRestrictionLinkedTaskOccurrence", fields: [linkedTaskOccurrenceId], references: [id], onDelete: SetNull)
+  ruleEvent            RuleEvent?      @relation(fields: [ruleEventId], references: [id], onDelete: SetNull)
+  createdBy            User            @relation("MediaRestrictionCreatedBy", fields: [createdByUserId], references: [id])
+  releasedBy           User?           @relation("MediaRestrictionReleasedBy", fields: [releasedByUserId], references: [id])
 
   @@index([familyId, status])
   @@index([childId, status])
+  @@index([linkedTaskOccurrenceId])
   @@index([ruleEventId])
   @@index([endsAt])
   @@index([createdByUserId])
@@ -933,8 +940,9 @@ model TaskOccurrence {
   taskTemplate       TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
   member             FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
   confirmedBy        User?                   @relation("TaskOccurrenceConfirmedBy", fields: [confirmedByUserId], references: [id])
-  subtasks           TaskOccurrenceSubTask[]
-  checklistInstances ChecklistInstance[]
+  subtasks                TaskOccurrenceSubTask[]
+  checklistInstances      ChecklistInstance[]
+  linkedMediaRestrictions MediaRestriction[]        @relation("MediaRestrictionLinkedTaskOccurrence")
 
   @@index([familyId, dueAt])
   @@index([familyMemberId, dueAt])
