@@ -7,6 +7,7 @@ const items = [
   { href: "/app/budget", label: "Budget", icon: "📊" },
   { href: "/app/calendar", label: "Plan", icon: "🗓️" },
   { href: "/app/meals", label: "Essen", icon: "🍽️" },
+  { href: "/app/relationships", label: "Beziehungen", icon: "🤝" },
   { href: "/app/kids", label: "Kids", icon: "🧒" },
   { href: "/app/media", label: "Medien", icon: "📱" },
   { href: "/app/tasks", label: "Aufgaben", icon: "✅" },

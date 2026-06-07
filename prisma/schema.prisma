@@ -152,6 +152,52 @@ enum MealKind {
   UNSPECIFIED
 }
 
+enum RelationshipType {
+  FRIEND
+  FAMILY
+  NEIGHBOR
+  SCHOOL_CLUB
+  OTHER
+}
+
+enum RelationshipPreferenceCategory {
+  DRINK
+  FOOD
+  HOBBY
+  GIFT_IDEA
+  ALLERGY
+  MEDICAL_NOTE
+  OTHER
+}
+
+enum RelationshipPreferenceSentiment {
+  LIKES
+  DISLIKES
+  NOTE
+}
+
+enum RelationshipGiftOccasion {
+  BIRTHDAY
+  CHRISTMAS
+  EASTER
+  SCHOOL
+  OTHER
+}
+
+enum RelationshipGiftListVisibility {
+  FAMILY_INTERNAL
+  ORGANIZERS_ONLY
+  HIDDEN_FROM_CHILDREN
+}
+
+enum RelationshipGiftStatus {
+  IDEA
+  WANTED
+  RESERVED
+  BOUGHT
+  DONE
+}
+
 model User {
   id                              String                    @id @default(cuid())
   email                           String                    @unique
@@ -190,6 +236,8 @@ model User {
   createdChecklistInstances       ChecklistInstance[]       @relation("ChecklistInstanceCreatedBy")
   checkedChecklistItems           ChecklistItemInstance[]   @relation("ChecklistItemCheckedBy")
   createdMealPlanEntries          MealPlanEntry[]           @relation("MealPlanEntryCreatedBy")
+  createdRelationshipContacts     RelationshipContact[]     @relation("RelationshipContactCreatedBy")
+  createdRelationshipGiftIdeas    RelationshipGiftIdea[]    @relation("RelationshipGiftIdeaCreatedBy")
 }
 
 model Session {
@@ -243,6 +291,10 @@ model Family {
   checklistTemplates         ChecklistTemplate[]
   checklistInstances         ChecklistInstance[]
   mealPlanEntries            MealPlanEntry[]
+  relationshipContacts       RelationshipContact[]
+  relationshipPreferences    RelationshipPreference[]
+  relationshipGiftLists      RelationshipGiftList[]
+  relationshipGiftIdeas      RelationshipGiftIdea[]
 }
 
 model FamilyUser {
@@ -307,6 +359,7 @@ model FamilyMember {
   mediaRestrictions      MediaRestriction[]    @relation("MediaRestrictionChild")
   assignedChecklists     ChecklistInstance[]   @relation("ChecklistAssignedMember")
   mealPlanEntries        MealPlanEntry[]
+  relationshipContacts   RelationshipContact[] @relation("RelationshipContactRelatedMember")
 
   @@index([familyId])
 }
@@ -333,6 +386,90 @@ model MealPlanEntry {
   @@index([familyMemberId, plannedDate])
   @@index([createdByUserId])
   @@index([visibleInNutrition])
+}
+
+model RelationshipContact {
+  id                    String           @id @default(cuid())
+  familyId              String
+  name                  String
+  relationshipType      RelationshipType @default(FRIEND)
+  relatedFamilyMemberId String?
+  notes                 String?
+  createdByUserId       String
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  family              Family                   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  relatedFamilyMember FamilyMember?            @relation("RelationshipContactRelatedMember", fields: [relatedFamilyMemberId], references: [id], onDelete: SetNull)
+  createdBy           User                     @relation("RelationshipContactCreatedBy", fields: [createdByUserId], references: [id])
+  preferences         RelationshipPreference[]
+  giftLists           RelationshipGiftList[]
+
+  @@index([familyId, name])
+  @@index([relatedFamilyMemberId])
+  @@index([createdByUserId])
+}
+
+model RelationshipPreference {
+  id         String                          @id @default(cuid())
+  familyId   String
+  contactId  String
+  category   RelationshipPreferenceCategory
+  label      String
+  sentiment  RelationshipPreferenceSentiment @default(NOTE)
+  isFavorite Boolean                         @default(false)
+  notes      String?
+  createdAt  DateTime                        @default(now())
+  updatedAt  DateTime                        @updatedAt
+
+  family  Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  contact RelationshipContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, category])
+  @@index([contactId])
+}
+
+model RelationshipGiftList {
+  id         String                         @id @default(cuid())
+  familyId   String
+  contactId  String
+  title      String
+  occasion   RelationshipGiftOccasion       @default(OTHER)
+  eventDate  DateTime?
+  visibility RelationshipGiftListVisibility @default(FAMILY_INTERNAL)
+  notes      String?
+  createdAt  DateTime                       @default(now())
+  updatedAt  DateTime                       @updatedAt
+
+  family    Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  contact   RelationshipContact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  giftIdeas RelationshipGiftIdea[]
+
+  @@index([familyId, occasion])
+  @@index([contactId])
+}
+
+model RelationshipGiftIdea {
+  id                  String                 @id @default(cuid())
+  familyId            String
+  giftListId          String
+  title               String
+  url                 String?
+  estimatedPriceCents Int?
+  priority            Int                    @default(3)
+  status              RelationshipGiftStatus @default(IDEA)
+  notes               String?
+  createdByUserId     String
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  family    Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  giftList  RelationshipGiftList @relation(fields: [giftListId], references: [id], onDelete: Cascade)
+  createdBy User                 @relation("RelationshipGiftIdeaCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([familyId, status])
+  @@index([giftListId])
+  @@index([createdByUserId])
 }
 
 model HouseholdBudgetPlanItem {
@@ -936,13 +1073,13 @@ model TaskOccurrence {
   createdAt            DateTime   @default(now())
   updatedAt            DateTime   @updatedAt
 
-  family             Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  taskTemplate       TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
-  member             FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
-  confirmedBy        User?                   @relation("TaskOccurrenceConfirmedBy", fields: [confirmedByUserId], references: [id])
+  family                  Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  taskTemplate            TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
+  member                  FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  confirmedBy             User?                   @relation("TaskOccurrenceConfirmedBy", fields: [confirmedByUserId], references: [id])
   subtasks                TaskOccurrenceSubTask[]
   checklistInstances      ChecklistInstance[]
-  linkedMediaRestrictions MediaRestriction[]        @relation("MediaRestrictionLinkedTaskOccurrence")
+  linkedMediaRestrictions MediaRestriction[]      @relation("MediaRestrictionLinkedTaskOccurrence")
 
   @@index([familyId, dueAt])
   @@index([familyMemberId, dueAt])
