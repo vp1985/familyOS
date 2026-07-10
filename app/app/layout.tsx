@@ -9,7 +9,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-slate-100 pb-24">
       <AppHeader familyName={context.family.name} userName={context.user.name} />
       <main className="mx-auto w-full max-w-md px-5 py-5">{children}</main>
-      <BottomNav />
+      <BottomNav renovationModuleEnabled={context.family.renovationModuleEnabled} />
     </div>
   );
 }

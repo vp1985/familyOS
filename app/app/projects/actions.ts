@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  addProjectGuests,
   createProject,
   createProjectExpense,
   createProjectSettlementPlan,
@@ -37,6 +38,13 @@ export async function voidProjectExpenseAction(projectId: string, expenseId: str
 export async function updateProjectStatusAction(projectId: string, status: "active" | "done" | "archived") {
   await updateProjectStatus(projectId, status);
   revalidatePath("/app");
+  revalidatePath("/app/projects");
+  revalidatePath(`/app/projects/${projectId}`);
+  redirect(`/app/projects/${projectId}`);
+}
+
+export async function addProjectGuestsAction(projectId: string, formData: FormData) {
+  await addProjectGuests(projectId, formData);
   revalidatePath("/app/projects");
   revalidatePath(`/app/projects/${projectId}`);
   redirect(`/app/projects/${projectId}`);

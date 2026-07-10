@@ -105,6 +105,41 @@ enum ProjectSettlementStatus {
   settled
 }
 
+enum RenovationProjectStatus {
+  IDEA
+  PLANNED
+  ACTIVE
+  PAUSED
+  DONE
+  ARCHIVED
+}
+
+enum RenovationRoomStatus {
+  OPEN
+  PLANNED
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  ARCHIVED
+}
+
+enum RenovationRoomShapeType {
+  RECTANGLE
+  L_SHAPE
+  POLYGON
+}
+
+enum RenovationFloorPlanMarkerType {
+  DOOR
+  WINDOW
+  SOCKET
+  RADIATOR
+  WATER
+  DRAIN
+  NOTE
+  SLOPE_LINE
+}
+
 enum ConsequenceStatus {
   active
   done
@@ -216,6 +251,8 @@ model User {
   createdProjects                 Project[]
   createdProjectExpenses          ProjectExpense[]
   createdProjectSettlements       ProjectSettlement[]
+  createdProjectGuests            ProjectGuest[]            @relation("ProjectGuestCreatedBy")
+  createdRenovationProjects       RenovationProject[]
   createdRules                    Rule[]
   createdRuleEvents               RuleEvent[]
   createdConsequences             Consequence[]
@@ -259,6 +296,7 @@ model Family {
   name                       String
   loginSlug                  String?                   @unique
   showPositiveBadgesToFamily Boolean                   @default(false)
+  renovationModuleEnabled Boolean                   @default(false)
   createdAt                  DateTime                  @default(now())
   updatedAt                  DateTime                  @updatedAt
   users                      FamilyUser[]
@@ -273,6 +311,9 @@ model Family {
   projects                   Project[]
   projectExpenses            ProjectExpense[]
   projectSettlements         ProjectSettlement[]
+  projectGuests              ProjectGuest[]
+  renovationProjects         RenovationProject[]
+  renovationRooms            RenovationRoom[]
   rules                      Rule[]
   ruleEvents                 RuleEvent[]
   consequences               Consequence[]
@@ -404,6 +445,7 @@ model RelationshipContact {
   createdBy           User                     @relation("RelationshipContactCreatedBy", fields: [createdByUserId], references: [id])
   preferences         RelationshipPreference[]
   giftLists           RelationshipGiftList[]
+  projectGuests       ProjectGuest[]
 
   @@index([familyId, name])
   @@index([relatedFamilyMemberId])
@@ -663,11 +705,13 @@ model Project {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  family       Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  createdBy    User                 @relation(fields: [createdByUserId], references: [id])
-  participants ProjectParticipant[]
-  expenses     ProjectExpense[]
-  settlements  ProjectSettlement[]
+  family             Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy          User                 @relation(fields: [createdByUserId], references: [id])
+  participants       ProjectParticipant[]
+  relationshipGuests ProjectGuest[]
+  expenses           ProjectExpense[]
+  renovationProjects RenovationProject[]
+  settlements        ProjectSettlement[]
 
   @@index([familyId, createdAt])
   @@index([createdByUserId])
@@ -684,6 +728,25 @@ model ProjectParticipant {
 
   @@unique([projectId, familyMemberId])
   @@index([familyMemberId])
+}
+
+model ProjectGuest {
+  id              String   @id @default(cuid())
+  familyId        String
+  projectId       String
+  contactId       String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family    Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  project   Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contact   RelationshipContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdBy User                @relation("ProjectGuestCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([projectId, contactId])
+  @@index([familyId, projectId])
+  @@index([contactId])
+  @@index([createdByUserId])
 }
 
 model ProjectExpense {
@@ -723,6 +786,90 @@ model ProjectExpenseShare {
 
   @@unique([expenseId, familyMemberId])
   @@index([familyMemberId])
+}
+
+model RenovationProject {
+  id              String                  @id @default(cuid())
+  familyId        String
+  title           String
+  description     String?
+  status          RenovationProjectStatus @default(IDEA)
+  priority        Int                     @default(3)
+  startDate       DateTime?
+  targetDate      DateTime?
+  budgetCents     Int?
+  linkedProjectId String?
+  createdByUserId String
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  family        Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  linkedProject Project?            @relation(fields: [linkedProjectId], references: [id], onDelete: SetNull)
+  createdBy     User                @relation(fields: [createdByUserId], references: [id])
+  rooms         RenovationRoom[]
+
+  @@index([familyId, status])
+  @@index([linkedProjectId])
+  @@index([createdByUserId])
+}
+
+model RenovationRoom {
+  id                  String               @id @default(cuid())
+  familyId            String
+  renovationProjectId String
+  name                String
+  category            String               @default("Raum")
+  floorLabel          String?
+  description         String?
+  status              RenovationRoomStatus @default(OPEN)
+  lengthMm            Int?
+  widthMm             Int?
+  heightMm            Int?
+  floorAreaM2Override Float?
+  wallAreaM2Override  Float?
+  sortOrder           Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  family            Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  renovationProject RenovationProject     @relation(fields: [renovationProjectId], references: [id], onDelete: Cascade)
+  floorPlan         RenovationFloorPlan?
+
+  @@index([familyId, renovationProjectId, sortOrder])
+  @@index([renovationProjectId])
+}
+
+model RenovationFloorPlan {
+  id                      String                  @id @default(cuid())
+  roomId                  String                  @unique
+  shapeType               RenovationRoomShapeType @default(RECTANGLE)
+  pointsJson              String?
+  scaleJson               String?
+  backgroundDocumentId    String?
+  backgroundTransformJson String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  room    RenovationRoom              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  markers RenovationFloorPlanMarker[]
+}
+
+model RenovationFloorPlanMarker {
+  id          String                        @id @default(cuid())
+  floorPlanId String
+  type        RenovationFloorPlanMarkerType
+  label       String
+  wall        String?
+  xM          Float?
+  yM          Float?
+  widthM      Float?
+  note        String?
+  createdAt   DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  floorPlan RenovationFloorPlan @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+
+  @@index([floorPlanId, type])
 }
 
 model ProjectSettlement {

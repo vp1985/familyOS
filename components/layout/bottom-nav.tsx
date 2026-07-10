@@ -1,6 +1,8 @@
 import Link from "next/link";
 
-const items = [
+type NavItem = { href: string; label: string; icon: string; requiresRenovation?: boolean };
+
+const items: NavItem[] = [
   { href: "/app", label: "Start", icon: "🏠" },
   { href: "/app/family", label: "Familie", icon: "👨‍👩‍👧" },
   { href: "/app/finance", label: "Geld", icon: "💶" },
@@ -14,17 +16,20 @@ const items = [
   { href: "/app/checklists", label: "Listen", icon: "🎒" },
   { href: "/app/tools", label: "Tools", icon: "🧰" },
   { href: "/app/projects", label: "Projekte", icon: "🧾" },
+  { href: "/app/renovation", label: "Renovierung", icon: "🛠️", requiresRenovation: true },
   { href: "/app/rules", label: "Regeln", icon: "📏" },
   { href: "/app/consequences", label: "Folgen", icon: "⏳" },
   { href: "/app/rewards", label: "Punkte", icon: "⭐" },
   { href: "/app/settings", label: "Setup", icon: "⚙️" },
 ];
 
-export function BottomNav() {
+export function BottomNav({ renovationModuleEnabled = false }: { renovationModuleEnabled?: boolean }) {
+  const visibleItems = items.filter((item) => !item.requiresRenovation || renovationModuleEnabled);
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/95 px-2 pb-3 pt-2 backdrop-blur">
       <div className="mx-auto flex max-w-md gap-1 overflow-x-auto px-1 [scrollbar-width:none]">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}

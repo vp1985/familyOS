@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCents } from "@/lib/money";
 import { getProjectDetail } from "@/lib/projects";
 import {
+  addProjectGuestsAction,
   createProjectSettlementPlanAction,
   settleProjectSettlementAction,
   updateProjectStatusAction,
   voidProjectExpenseAction,
 } from "../actions";
+import { preferenceCategoryLabel } from "@/lib/relationships";
 
 function balanceText(netCents: number) {
   if (netCents > 0) return `bekommt noch ${formatCents(netCents)}`;
@@ -22,11 +24,19 @@ function statusLabel(status: string) {
   return "Aktiv";
 }
 
+function preferenceSentimentLabel(sentiment: string) {
+  if (sentiment === "LIKES") return "mag";
+  if (sentiment === "DISLIKES") return "mag nicht";
+  return "Hinweis";
+}
+
 export default async function ProjectDetailPage({ params }: { params: Promise<{ projectId: string }> }) {
   const { projectId } = await params;
-  const { project, balance, settlementSuggestions } = await getProjectDetail(projectId);
+  const { project, balance, settlementSuggestions, availableRelationshipContacts, guestPreferenceSummary } = await getProjectDetail(projectId);
   const openSettlements = project.settlements.filter((settlement) => settlement.status === "open");
   const settledSettlements = project.settlements.filter((settlement) => settlement.status === "settled");
+  const selectedGuestContactIds = new Set(project.relationshipGuests.map((guest) => guest.contactId));
+  const unselectedRelationshipContacts = availableRelationshipContacts.filter((contact) => !selectedGuestContactIds.has(contact.id));
 
   return (
     <div className="space-y-5">
@@ -152,6 +162,63 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               {participant.member.icon ?? "👤"} {participant.member.name}
             </span>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Gäste & Einkaufshinweise</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {project.relationshipGuests.length === 0 ? (
+            <p className="text-sm text-slate-600">Noch keine Beziehungskontakte eingeladen.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {project.relationshipGuests.map((guest) => (
+                <span key={guest.id} className="rounded-full bg-violet-50 px-3 py-1 text-sm font-medium text-violet-700">
+                  {guest.contact.name}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {unselectedRelationshipContacts.length > 0 ? (
+            <form action={addProjectGuestsAction.bind(null, project.id)} className="space-y-3 rounded-2xl bg-slate-50 p-3">
+              <p className="text-sm font-semibold text-slate-800">Beziehungskontakte einladen</p>
+              <div className="grid gap-2">
+                {unselectedRelationshipContacts.map((contact) => (
+                  <label key={contact.id} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
+                    <input type="checkbox" name="contactIds" value={contact.id} />
+                    {contact.name}
+                  </label>
+                ))}
+              </div>
+              <Button type="submit" className="w-full">Vorlieben anzeigen</Button>
+            </form>
+          ) : availableRelationshipContacts.length === 0 ? (
+            <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">Lege zuerst unter Beziehungen Kontakte mit Vorlieben an.</p>
+          ) : null}
+
+          {guestPreferenceSummary.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-sm font-semibold text-slate-800">Einkaufshinweise</p>
+              {guestPreferenceSummary.map((group) => (
+                <div key={group.category} className="rounded-2xl bg-slate-50 p-3">
+                  <p className="text-sm font-semibold text-slate-900">{preferenceCategoryLabel(group.category)}</p>
+                  <div className="mt-2 space-y-2">
+                    {group.entries.map((entry) => (
+                      <div key={`${group.category}-${entry.sentiment}-${entry.label}`} className={entry.isSafetyHint ? "rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800" : "rounded-xl bg-white px-3 py-2 text-sm text-slate-700"}>
+                        <span className="font-semibold">{entry.label}</span>
+                        <span className="text-slate-500"> · {preferenceSentimentLabel(entry.sentiment)} · {entry.contactNames.join(", ")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : project.relationshipGuests.length > 0 ? (
+            <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">Für diese Gäste sind noch keine Vorlieben oder Allergien gespeichert.</p>
+          ) : null}
         </CardContent>
       </Card>
 

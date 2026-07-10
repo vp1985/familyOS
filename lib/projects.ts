@@ -18,6 +18,10 @@ const expenseInputSchema = z.object({
   shareMemberIds: z.array(z.string().min(1)).min(1),
 });
 
+const projectGuestInputSchema = z.object({
+  contactIds: z.array(z.string().min(1)).min(1),
+});
+
 type InvalidInput = { success: false };
 
 export type ParsedProjectInput = {
@@ -32,6 +36,37 @@ export type ParsedExpenseInput = {
   amountCents: number;
   paidByMemberId: string;
   shareMemberIds: string[];
+};
+
+export type ParsedProjectGuestInput = {
+  contactIds: string[];
+};
+
+type ProjectGuestPreference = {
+  category: string;
+  label: string;
+  sentiment: string;
+  isFavorite: boolean;
+};
+
+export type ProjectGuestPreferenceSummaryEntry = {
+  label: string;
+  sentiment: string;
+  contactNames: string[];
+  isFavorite: boolean;
+  isSafetyHint: boolean;
+};
+
+export type ProjectGuestPreferenceSummaryGroup = {
+  category: string;
+  entries: ProjectGuestPreferenceSummaryEntry[];
+};
+
+export type ProjectGuestWithPreferences = {
+  contact: {
+    name: string;
+    preferences: ProjectGuestPreference[];
+  };
 };
 
 export type ProjectBalanceMember = {
@@ -123,6 +158,70 @@ export function parseExpenseInput(input: {
     paidByMemberId: parsed.data.paidByMemberId,
     shareMemberIds: parsed.data.shareMemberIds,
   };
+}
+
+export function parseProjectGuestInput(input: { contactIds?: string[] }): ParsedProjectGuestInput | InvalidInput {
+  const parsed = projectGuestInputSchema.safeParse({
+    contactIds: uniqueIds(input.contactIds ?? []),
+  });
+
+  if (!parsed.success) return invalid();
+
+  return { contactIds: parsed.data.contactIds };
+}
+
+export function buildProjectGuestPreferenceSummary(guests: ProjectGuestWithPreferences[]): ProjectGuestPreferenceSummaryGroup[] {
+  const entriesByKey = new Map<string, ProjectGuestPreferenceSummaryEntry & { category: string }>();
+
+  for (const guest of guests) {
+    const contactName = guest.contact.name.trim();
+    if (!contactName) continue;
+
+    for (const preference of guest.contact.preferences) {
+      const label = preference.label.trim();
+      if (!label) continue;
+
+      const isSafetyHint = preference.category === "ALLERGY" || preference.category === "MEDICAL_NOTE";
+      const sentiment = isSafetyHint ? "NOTE" : preference.sentiment;
+      const key = `${preference.category}::${sentiment}::${label.toLocaleLowerCase("de-DE")}`;
+      const existing = entriesByKey.get(key);
+
+      if (existing) {
+        if (!existing.contactNames.includes(contactName)) existing.contactNames.push(contactName);
+        existing.isFavorite = existing.isFavorite || preference.isFavorite;
+        continue;
+      }
+
+      entriesByKey.set(key, {
+        category: preference.category,
+        label,
+        sentiment,
+        contactNames: [contactName],
+        isFavorite: preference.isFavorite,
+        isSafetyHint,
+      });
+    }
+  }
+
+  const categoryOrder = ["ALLERGY", "MEDICAL_NOTE", "DRINK", "FOOD", "HOBBY", "GIFT_IDEA", "OTHER"];
+  const groupsByCategory = new Map<string, ProjectGuestPreferenceSummaryEntry[]>();
+
+  for (const entry of entriesByKey.values()) {
+    const { category, ...summaryEntry } = entry;
+    const groupEntries = groupsByCategory.get(category) ?? [];
+    groupEntries.push({
+      ...summaryEntry,
+      contactNames: [...summaryEntry.contactNames].sort((a, b) => a.localeCompare(b, "de-DE")),
+    });
+    groupsByCategory.set(category, groupEntries);
+  }
+
+  return Array.from(groupsByCategory.entries())
+    .map(([category, entries]) => ({
+      category,
+      entries: entries.sort((a, b) => Number(b.isSafetyHint) - Number(a.isSafetyHint) || Number(b.isFavorite) - Number(a.isFavorite) || a.label.localeCompare(b.label, "de-DE")),
+    }))
+    .sort((a, b) => categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category));
 }
 
 export function splitEvenly(amountCents: number, familyMemberIds: string[]) {
@@ -251,6 +350,10 @@ export async function getProjectDetail(projectId: string) {
     where: { id: projectId, familyId: context.family.id },
     include: {
       participants: { include: { member: true }, orderBy: { createdAt: "asc" } },
+      relationshipGuests: {
+        include: { contact: { include: { preferences: true } } },
+        orderBy: { createdAt: "asc" },
+      },
       expenses: {
         include: { paidByMember: true, shares: { include: { member: true } } },
         orderBy: { expenseDate: "desc" },
@@ -263,6 +366,13 @@ export async function getProjectDetail(projectId: string) {
   });
 
   if (!project) redirect("/app/projects?error=not-found");
+
+  const availableRelationshipContacts = await db.relationshipContact.findMany({
+    where: { familyId: context.family.id },
+    orderBy: [{ name: "asc" }, { createdAt: "asc" }],
+  });
+
+  const guestPreferenceSummary = buildProjectGuestPreferenceSummary(project.relationshipGuests);
 
   const members = project.participants.map((participant) => ({
     id: participant.member.id,
@@ -284,7 +394,7 @@ export async function getProjectDetail(projectId: string) {
 
   const settlementSuggestions = buildProjectSettlementSuggestions(balance.rows);
 
-  return { context, project, balance, settlementSuggestions };
+  return { context, project, balance, settlementSuggestions, availableRelationshipContacts, guestPreferenceSummary };
 }
 
 async function getFamilyScopedProjectWithBalance(projectId: string, familyId: string) {
@@ -414,6 +524,31 @@ export async function updateProjectStatus(projectId: string, status: "active" | 
   await db.project.update({
     where: { id: project.id },
     data: { status },
+  });
+}
+
+export async function addProjectGuests(projectId: string, formData: FormData) {
+  const context = await requireFamilyAdmin();
+  const parsed = parseProjectGuestInput({ contactIds: formData.getAll("contactIds").map(String) });
+
+  if (isInvalidInput(parsed)) redirect(`/app/projects/${projectId}?error=invalid-guests`);
+
+  const [project, validContactCount] = await Promise.all([
+    db.project.findFirst({ where: { id: projectId, familyId: context.family.id }, select: { id: true } }),
+    db.relationshipContact.count({ where: { familyId: context.family.id, id: { in: parsed.contactIds } } }),
+  ]);
+
+  if (!project) redirect("/app/projects?error=not-found");
+  if (validContactCount !== parsed.contactIds.length) redirect(`/app/projects/${projectId}?error=invalid-guests`);
+
+  await db.projectGuest.createMany({
+    data: parsed.contactIds.map((contactId) => ({
+      familyId: context.family.id,
+      projectId: project.id,
+      contactId,
+      createdByUserId: context.user.id,
+    })),
+    skipDuplicates: true,
   });
 }
 
