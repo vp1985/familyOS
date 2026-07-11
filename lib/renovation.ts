@@ -4,6 +4,9 @@ import { db } from "@/lib/db";
 import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
 
+const renovationTaskStatuses = ["OPEN", "PLANNED", "IN_PROGRESS", "BLOCKED", "DONE", "ARCHIVED"] as const;
+export type RenovationTaskStatusValue = (typeof renovationTaskStatuses)[number];
+
 const renovationProjectInputSchema = z.object({
   title: z.string().trim().min(2),
   description: z.string().trim().optional(),
@@ -16,6 +19,26 @@ const renovationRoomInputSchema = z.object({
   lengthM: z.string().trim().optional(),
   widthM: z.string().trim().optional(),
   heightM: z.string().trim().optional(),
+});
+
+const renovationWorkPackageInputSchema = z.object({
+  title: z.string().trim().min(2),
+  description: z.string().trim().optional(),
+  roomId: z.string().trim().optional(),
+});
+
+const renovationTaskInputSchema = z.object({
+  title: z.string().trim().min(2),
+  description: z.string().trim().optional(),
+  status: z.enum(renovationTaskStatuses).optional(),
+  blockerNote: z.string().trim().optional(),
+  roomId: z.string().trim().optional(),
+  workPackageId: z.string().trim().optional(),
+});
+
+const renovationTaskStatusInputSchema = z.object({
+  taskId: z.string().trim().min(1),
+  status: z.enum(renovationTaskStatuses),
 });
 
 type InvalidInput = { success: false };
@@ -32,12 +55,19 @@ export type RectangleRoomMetricInput = {
   flooringWastePercent?: number;
 };
 
+export type RenovationProgressTask = { status: RenovationTaskStatusValue | string };
+
 function invalid(): InvalidInput {
   return { success: false };
 }
 
 export function isInvalidInput<T>(input: T | InvalidInput): input is InvalidInput {
   return typeof input === "object" && input !== null && "success" in input && input.success === false;
+}
+
+function emptyToNull(value?: string | null) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 function round2(value: number) {
@@ -54,6 +84,15 @@ function parseMetersToMillimeters(value?: string) {
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return Math.round(parsed * 1000);
+}
+
+export function renovationTaskStatusLabel(status: RenovationTaskStatusValue | string) {
+  if (status === "DONE") return "Erledigt";
+  if (status === "BLOCKED") return "Blockiert";
+  if (status === "IN_PROGRESS") return "Läuft";
+  if (status === "PLANNED") return "Geplant";
+  if (status === "ARCHIVED") return "Archiviert";
+  return "Offen";
 }
 
 export function parseRenovationProjectInput(input: { title?: string; description?: string; budget?: string }) {
@@ -81,6 +120,61 @@ export function parseRenovationRoomInput(input: { name?: string; category?: stri
     widthMm: parseMetersToMillimeters(parsed.data.widthM),
     heightMm: parseMetersToMillimeters(parsed.data.heightM),
   };
+}
+
+export function parseRenovationWorkPackageInput(input: { title?: string; description?: string; roomId?: string }) {
+  const parsed = renovationWorkPackageInputSchema.safeParse(input);
+  if (!parsed.success) return invalid();
+
+  return {
+    title: parsed.data.title,
+    description: parsed.data.description ?? "",
+    roomId: emptyToNull(parsed.data.roomId),
+  };
+}
+
+export function parseRenovationTaskInput(input: { title?: string; description?: string; status?: string; blockerNote?: string; roomId?: string; workPackageId?: string }) {
+  const parsed = renovationTaskInputSchema.safeParse(input);
+  if (!parsed.success) return invalid();
+
+  return {
+    title: parsed.data.title,
+    description: parsed.data.description ?? "",
+    status: parsed.data.status ?? "OPEN",
+    blockerNote: parsed.data.status === "BLOCKED" ? parsed.data.blockerNote ?? "" : "",
+    roomId: emptyToNull(parsed.data.roomId),
+    workPackageId: emptyToNull(parsed.data.workPackageId),
+  };
+}
+
+export function parseRenovationTaskStatusInput(input: { taskId?: string; status?: string }) {
+  const parsed = renovationTaskStatusInputSchema.safeParse(input);
+  if (!parsed.success) return invalid();
+  return parsed.data;
+}
+
+export function buildRenovationProgress(tasks: RenovationProgressTask[]) {
+  const active = tasks.filter((task) => task.status !== "ARCHIVED");
+  const done = active.filter((task) => task.status === "DONE").length;
+  const blocked = active.filter((task) => task.status === "BLOCKED").length;
+  const total = active.length;
+  return {
+    total,
+    done,
+    open: total - done - blocked,
+    blocked,
+    percent: total === 0 ? 0 : Math.round((done / total) * 100),
+    complete: total > 0 && done === total,
+  };
+}
+
+export function groupRenovationTasksByStatus<T extends { status: RenovationTaskStatusValue | string }>(tasks: T[]) {
+  const statuses: RenovationTaskStatusValue[] = ["OPEN", "PLANNED", "IN_PROGRESS", "BLOCKED", "DONE"];
+  return statuses.map((status) => ({
+    status,
+    label: renovationTaskStatusLabel(status),
+    tasks: tasks.filter((task) => task.status === status),
+  }));
 }
 
 export function calculateRectangleRoomMetrics(input: RectangleRoomMetricInput) {
@@ -130,13 +224,19 @@ export function roomMetricsFromMillimeters(room: { lengthMm: number | null; widt
   });
 }
 
+const renovationDetailInclude = {
+  rooms: { include: { floorPlan: { include: { markers: true } } }, orderBy: { sortOrder: "asc" as const } },
+  workPackages: { include: { room: true, tasks: { orderBy: { sortOrder: "asc" as const } } }, orderBy: { sortOrder: "asc" as const } },
+  tasks: { include: { room: true, workPackage: true }, orderBy: [{ status: "asc" as const }, { sortOrder: "asc" as const }, { createdAt: "asc" as const }] },
+};
+
 export async function getRenovationProjects() {
   const context = await requireFamilyContext();
   if (!context.family.renovationModuleEnabled) redirect("/app/settings?renovation=disabled");
 
   const projects = await db.renovationProject.findMany({
     where: { familyId: context.family.id },
-    include: { rooms: { include: { floorPlan: { include: { markers: true } } }, orderBy: { sortOrder: "asc" } } },
+    include: renovationDetailInclude,
     orderBy: { createdAt: "desc" },
   });
 
@@ -149,7 +249,7 @@ export async function getRenovationProjectDetail(renovationId: string) {
 
   const project = await db.renovationProject.findFirst({
     where: { id: renovationId, familyId: context.family.id },
-    include: { rooms: { include: { floorPlan: { include: { markers: true } } }, orderBy: { sortOrder: "asc" } } },
+    include: renovationDetailInclude,
   });
   if (!project) redirect("/app/renovation?error=not-found");
 
@@ -220,4 +320,86 @@ export async function createRenovationRoom(renovationId: string, formData: FormD
   });
 
   return room.id;
+}
+
+async function ensureRenovationProjectForAdmin(renovationId: string) {
+  const context = await requireFamilyAdmin();
+  if (!context.family.renovationModuleEnabled) redirect("/app/settings?renovation=disabled");
+  const project = await db.renovationProject.findFirst({
+    where: { id: renovationId, familyId: context.family.id },
+    include: { rooms: { select: { id: true } }, workPackages: { select: { id: true } } },
+  });
+  if (!project) redirect("/app/renovation?error=not-found");
+  return { context, project };
+}
+
+export async function createRenovationWorkPackage(renovationId: string, formData: FormData) {
+  const { context, project } = await ensureRenovationProjectForAdmin(renovationId);
+  const parsed = parseRenovationWorkPackageInput({
+    title: formData.get("title")?.toString(),
+    description: formData.get("description")?.toString(),
+    roomId: formData.get("roomId")?.toString(),
+  });
+  if (isInvalidInput(parsed)) redirect(`/app/renovation/${renovationId}?error=invalid-work-package`);
+  if (parsed.roomId && !project.rooms.some((room) => room.id === parsed.roomId)) redirect(`/app/renovation/${renovationId}?error=invalid-room`);
+
+  const sortOrder = await db.renovationWorkPackage.count({ where: { renovationProjectId: project.id } });
+  return db.renovationWorkPackage.create({
+    data: {
+      familyId: context.family.id,
+      renovationProjectId: project.id,
+      roomId: parsed.roomId,
+      title: parsed.title,
+      description: parsed.description || null,
+      sortOrder: sortOrder * 10,
+      createdByUserId: context.user.id,
+    },
+  });
+}
+
+export async function createRenovationTask(renovationId: string, formData: FormData) {
+  const { context, project } = await ensureRenovationProjectForAdmin(renovationId);
+  const parsed = parseRenovationTaskInput({
+    title: formData.get("title")?.toString(),
+    description: formData.get("description")?.toString(),
+    status: formData.get("status")?.toString(),
+    blockerNote: formData.get("blockerNote")?.toString(),
+    roomId: formData.get("roomId")?.toString(),
+    workPackageId: formData.get("workPackageId")?.toString(),
+  });
+  if (isInvalidInput(parsed)) redirect(`/app/renovation/${renovationId}?error=invalid-task`);
+  if (parsed.roomId && !project.rooms.some((room) => room.id === parsed.roomId)) redirect(`/app/renovation/${renovationId}?error=invalid-room`);
+  if (parsed.workPackageId && !project.workPackages.some((workPackage) => workPackage.id === parsed.workPackageId)) {
+    redirect(`/app/renovation/${renovationId}?error=invalid-work-package`);
+  }
+
+  const sortOrder = await db.renovationTask.count({ where: { renovationProjectId: project.id } });
+  return db.renovationTask.create({
+    data: {
+      familyId: context.family.id,
+      renovationProjectId: project.id,
+      roomId: parsed.roomId,
+      workPackageId: parsed.workPackageId,
+      title: parsed.title,
+      description: parsed.description || null,
+      status: parsed.status,
+      blockerNote: parsed.blockerNote || null,
+      sortOrder: sortOrder * 10,
+      createdByUserId: context.user.id,
+    },
+  });
+}
+
+export async function updateRenovationTaskStatus(renovationId: string, formData: FormData) {
+  const { context } = await ensureRenovationProjectForAdmin(renovationId);
+  const parsed = parseRenovationTaskStatusInput({
+    taskId: formData.get("taskId")?.toString(),
+    status: formData.get("status")?.toString(),
+  });
+  if (isInvalidInput(parsed)) redirect(`/app/renovation/${renovationId}?error=invalid-task-status`);
+
+  await db.renovationTask.updateMany({
+    where: { id: parsed.taskId, renovationProjectId: renovationId, familyId: context.family.id },
+    data: { status: parsed.status, blockerNote: parsed.status === "BLOCKED" ? undefined : null },
+  });
 }
