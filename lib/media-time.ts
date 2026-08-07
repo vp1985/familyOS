@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
 
 export type MediaType = "PHONE" | "GAMING" | "WATCHING" | "TABLET" | "APP" | "OTHER";
 export type MediaRestrictionType = "BLOCKED" | "REDUCED" | "PARENT_APPROVAL_REQUIRED" | "CONVERTED_TO_EDUCATION";
@@ -198,11 +198,12 @@ export async function getMediaPageData() {
 }
 
 export async function getKidsMediaData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
+  const childId = context.childMemberId;
   const [children, rules, restrictions] = await Promise.all([
-    db.familyMember.findMany({ where: { familyId: context.family.id, role: "child" }, orderBy: { createdAt: "asc" } }),
+    db.familyMember.findMany({ where: { familyId: context.family.id, role: "child", ...(childId ? { id: childId } : {}) }, orderBy: { createdAt: "asc" } }),
     db.mediaAllowanceRule.findMany({ where: { familyId: context.family.id, active: true }, orderBy: [{ mediaType: "asc" }, { minAgeYears: "asc" }] }),
-    db.mediaRestriction.findMany({ where: { familyId: context.family.id, status: { in: ["ACTIVE", "ENDED"] } }, include: { linkedTaskOccurrence: true }, orderBy: { endsAt: "asc" } }),
+    db.mediaRestriction.findMany({ where: { familyId: context.family.id, ...(childId ? { childId } : {}), status: { in: ["ACTIVE", "ENDED"] } }, include: { linkedTaskOccurrence: true }, orderBy: { endsAt: "asc" } }),
   ]);
   const now = new Date();
   const summaries = children.map((child) => buildMediaSummaryForChild(child, rules, restrictions, now));

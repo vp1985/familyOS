@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { ChecklistKind, ChecklistStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
 
 export type ChecklistItemProgress = { checked: boolean; requiredSnapshot?: boolean | null };
 
@@ -242,7 +242,7 @@ function nonEmptyRows(formData: FormData) {
 }
 
 export async function getChecklistsPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const [templates, instances, members, tasks] = await Promise.all([
     db.checklistTemplate.findMany({
       where: { familyId: context.family.id, active: true },
@@ -267,9 +267,14 @@ export async function getChecklistsPageData() {
 }
 
 export async function getKidsChecklistData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
+  const childId = context.childMemberId;
   const instances = await db.checklistInstance.findMany({
-    where: { familyId: context.family.id, status: "OPEN" },
+    where: {
+      familyId: context.family.id,
+      status: "OPEN",
+      ...(childId ? { OR: [{ assignedFamilyMemberId: childId }, { taskOccurrence: { familyMemberId: childId } }] } : {}),
+    },
     include: { items: { orderBy: { sortOrder: "asc" } }, assignedMember: true, taskOccurrence: true },
     orderBy: [{ createdAt: "desc" }],
     take: 30,
@@ -366,12 +371,19 @@ export async function createChecklistInstance(formData: FormData) {
 }
 
 export async function setChecklistItemChecked(itemId: string, checked: boolean) {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
   const item = await db.checklistItemInstance.findFirst({
     where: { id: itemId, checklistInstance: { familyId: context.family.id } },
-    include: { checklistInstance: { include: { items: true } } },
+    include: { checklistInstance: { include: { items: true, taskOccurrence: true } } },
   });
   if (!item) redirect("/app/checklists?error=invalid-item");
+  if (
+    context.childMemberId
+    && item.checklistInstance.assignedFamilyMemberId !== context.childMemberId
+    && item.checklistInstance.taskOccurrence?.familyMemberId !== context.childMemberId
+  ) {
+    redirect("/app/kids?error=forbidden-checklist-item");
+  }
 
   await db.checklistItemInstance.update({
     where: { id: item.id },

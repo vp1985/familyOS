@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { MoneyDirection, MoneyOccurrenceStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
 import { bookMoneyTransaction } from "@/lib/finances";
 
@@ -150,7 +150,7 @@ export async function ensureMoneyOccurrencesForMonth(familyId: string, dueMonth 
 }
 
 export async function getChildMoneyOverview() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const dueMonth = monthKey();
   await ensureMoneyOccurrencesForMonth(context.family.id, dueMonth);
 
@@ -188,12 +188,13 @@ export async function getChildMoneyOverview() {
 }
 
 export async function getKidsMoneyData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
+  const childId = context.childMemberId;
   const dueMonth = monthKey();
   await ensureMoneyOccurrencesForMonth(context.family.id, dueMonth);
 
   const children = await db.familyMember.findMany({
-    where: { familyId: context.family.id, role: "child" },
+    where: { familyId: context.family.id, role: "child", ...(childId ? { id: childId } : {}) },
     include: {
       financeAccounts: { orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] },
       moneyRules: { where: { active: true, visibleToChild: true }, include: { account: true }, orderBy: { createdAt: "asc" } },

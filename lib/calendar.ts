@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 const calendarEventInputSchema = z.object({
   title: z.string().trim().min(2),
@@ -258,7 +258,7 @@ export function groupEventsByDay<T extends CalendarEventLike>(events: T[], weekS
 }
 
 export async function getCalendarPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const week = getWeekRange();
 
   const [members, events, sources] = await Promise.all([

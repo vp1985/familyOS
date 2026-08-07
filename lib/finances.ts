@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { FinanceAccountKind, MoneyTransactionType as PrismaMoneyTransactionType } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
 import { applyMoneyTransaction, formatCents, parseEuroToCents } from "@/lib/money";
 
 const transactionInputSchema = z.object({
@@ -82,7 +82,7 @@ export async function ensureFinanceAccount(familyId: string, familyMemberId: str
 }
 
 export async function getChildFinanceOverview() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
 
   const children = await db.familyMember.findMany({
     where: {
@@ -171,7 +171,7 @@ export async function updateChildCashAccountSettings(formData: FormData) {
 }
 
 export async function createChildCashAccount(formData: FormData) {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
   const parsed = z.object({
     childId: z.string().min(1),
     name: z.string().trim().min(2).max(40),
@@ -180,6 +180,7 @@ export async function createChildCashAccount(formData: FormData) {
     name: formData.get("name")?.toString(),
   });
   if (!parsed.success) redirect("/app/kids?error=invalid-account");
+  if (context.childMemberId && parsed.data.childId !== context.childMemberId) redirect("/app/kids?error=forbidden-account");
 
   const child = await db.familyMember.findFirst({
     where: { id: parsed.data.childId, familyId: context.family.id, role: "child" },

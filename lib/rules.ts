@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 import {
   getRuleTemplateById,
   parseRuleTemplateSelection,
@@ -76,7 +76,7 @@ export function parseRuleEventInput(input: {
 }
 
 export async function getRulesPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const [rules, members] = await Promise.all([
     db.rule.findMany({
       where: { familyId: context.family.id },

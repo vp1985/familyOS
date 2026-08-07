@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 export type MealKind = "BREAKFAST" | "LUNCH" | "DINNER" | "UNSPECIFIED";
 
@@ -142,7 +142,7 @@ export function buildNutritionDishSuggestions(plans: Array<{ dishName: string; p
 }
 
 export async function getMealPlannerPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const week = getWeekRange();
 
   const [members, plans] = await Promise.all([

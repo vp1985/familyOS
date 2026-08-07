@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 const pointTransactionInputSchema = z.object({
   familyMemberId: z.string().trim().min(1),
@@ -98,7 +98,7 @@ export function shouldShowBadgeToFamily(
 }
 
 export async function getGamificationDashboardData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const [members, pointTransactions, badges] = await Promise.all([
     db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] }),
     db.pointTransaction.findMany({ where: { familyId: context.family.id } }),
@@ -116,7 +116,7 @@ export async function getGamificationDashboardData() {
 }
 
 export async function getGamificationPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const [members, pointTransactions, rewards, redemptions, badges] = await Promise.all([
     db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] }),
     db.pointTransaction.findMany({ where: { familyId: context.family.id }, include: { member: true }, orderBy: { createdAt: "desc" }, take: 30 }),

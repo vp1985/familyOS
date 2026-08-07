@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
 
 const renovationTaskStatuses = ["OPEN", "PLANNED", "IN_PROGRESS", "BLOCKED", "DONE", "ARCHIVED"] as const;
@@ -231,7 +231,7 @@ const renovationDetailInclude = {
 };
 
 export async function getRenovationProjects() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   if (!context.family.renovationModuleEnabled) redirect("/app/settings?renovation=disabled");
 
   const projects = await db.renovationProject.findMany({
@@ -244,7 +244,7 @@ export async function getRenovationProjects() {
 }
 
 export async function getRenovationProjectDetail(renovationId: string) {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   if (!context.family.renovationModuleEnabled) redirect("/app/settings?renovation=disabled");
 
   const project = await db.renovationProject.findFirst({

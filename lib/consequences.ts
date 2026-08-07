@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 const consequenceInputSchema = z.object({
   title: z.string().trim().min(2),
@@ -71,7 +71,7 @@ function parseOptionalDate(value: string) {
 }
 
 export async function getActiveConsequencesOverview() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const consequences = await db.consequence.findMany({
     where: { familyId: context.family.id, status: "active" },
     include: { member: true },
@@ -83,7 +83,7 @@ export async function getActiveConsequencesOverview() {
 }
 
 export async function getConsequencesPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const consequences = await db.consequence.findMany({
     where: { familyId: context.family.id },
     include: { member: true, ruleEvent: { include: { rule: true } } },

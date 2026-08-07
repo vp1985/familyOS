@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateFamilyBadgeVisibilityAction, updateRenovationModuleSettingAction } from "@/lib/family-access";
-import { requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 export default async function SettingsPage() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
 
   return (
     <div className="space-y-5">

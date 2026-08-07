@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 const familyMemberInputSchema = z.object({
   name: z.string().trim().min(2),
@@ -61,7 +61,7 @@ export function parseFamilyMemberInput(input: FamilyMemberInput): ParsedFamilyMe
 }
 
 export async function getFamilyMembers() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
 
   const members = await db.familyMember.findMany({
     where: { familyId: context.family.id },

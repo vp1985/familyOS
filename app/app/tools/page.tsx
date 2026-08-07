@@ -1,11 +1,11 @@
 import { ChessClock } from "@/components/tools/chess-clock";
 import { Stopwatch } from "@/components/tools/stopwatch";
 import { db } from "@/lib/db";
-import { requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 import { buildChessPlayerOptions } from "@/lib/chess-competition";
 
 export default async function ToolsPage() {
-  const { family } = await requireFamilyContext();
+  const { family } = await requireFamilyAdmin();
   const [members, competitionPlayers] = await Promise.all([
     db.familyMember.findMany({
       where: { familyId: family.id },

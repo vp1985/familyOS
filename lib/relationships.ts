@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
 
 export const relationshipTypes = ["FRIEND", "FAMILY", "NEIGHBOR", "SCHOOL_CLUB", "OTHER"] as const;
@@ -294,7 +294,7 @@ export function giftListVisibilityLabel(visibility: GiftListVisibilityValue | st
 }
 
 export async function getRelationshipsPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const [members, contacts] = await Promise.all([
     db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] }),
     db.relationshipContact.findMany({

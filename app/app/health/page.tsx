@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ async function getDatabaseStatus() {
 }
 
 export default async function HealthPage() {
+  await requireFamilyAdmin();
   const database = await getDatabaseStatus();
 
   const checks = [

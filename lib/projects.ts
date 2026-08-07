@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
 
 const projectInputSchema = z.object({
@@ -321,7 +321,7 @@ export function buildProjectSettlementSuggestions(rows: ProjectBalanceRow[]): Pr
 }
 
 export async function getProjectList() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const projects = await db.project.findMany({
     where: { familyId: context.family.id },
     include: {
@@ -345,7 +345,7 @@ export async function getProjectFormData() {
 }
 
 export async function getProjectDetail(projectId: string) {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const project = await db.project.findFirst({
     where: { id: projectId, familyId: context.family.id },
     include: {

@@ -19,6 +19,7 @@ export async function requireFamilyContext() {
     family: familyUser.family,
     role: familyUser.role,
     familyUserId: familyUser.id,
+    familyMemberId: familyUser.familyMemberId,
   };
 }
 
@@ -34,4 +35,28 @@ export async function requireFamilyRole(allowedRoles: FamilyUserRole[]) {
 
 export async function requireFamilyAdmin() {
   return requireFamilyRole(["owner", "admin"]);
+}
+
+export async function requireChildContext() {
+  const context = await requireFamilyRole(["child"]);
+
+  if (!context.familyMemberId) {
+    throw new Error("Kinderkonto ist keinem Familienprofil zugeordnet.");
+  }
+
+  return { ...context, childMemberId: context.familyMemberId };
+}
+
+export async function requireFamilyAdminOrChild() {
+  const context = await requireFamilyContext();
+
+  if (context.role === "owner" || context.role === "admin") {
+    return { ...context, childMemberId: null };
+  }
+
+  if (context.role === "child" && context.familyMemberId) {
+    return { ...context, childMemberId: context.familyMemberId };
+  }
+
+  throw new Error("Keine Berechtigung für diese Familienaktion.");
 }

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireChildContext, requireFamilyAdmin } from "@/lib/family-context";
 import { applyMoneyTransaction, parseEuroToCents } from "@/lib/money";
 
 export type TaskStatus = "open" | "in_progress" | "done" | "confirmed" | "skipped" | "missed";
@@ -240,7 +240,7 @@ async function ensureMembers(familyId: string, memberIds: string[]) {
 }
 
 export async function getTasksPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const today = new Date();
   today.setUTCHours(23, 59, 59, 999);
   const [members, occurrences] = await Promise.all([
@@ -261,7 +261,7 @@ export async function getTasksPageData() {
 }
 
 export async function getNewTaskPageData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const members = await db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] });
   return { context, members };
 }
@@ -384,6 +384,24 @@ export async function updateTaskOccurrenceStatus(occurrenceId: string, status: T
   }
 
   await db.$transaction(writes);
+}
+
+export async function markOwnTaskOccurrenceDone(occurrenceId: string) {
+  const context = await requireChildContext();
+  const occurrence = await db.taskOccurrence.findFirst({
+    where: {
+      id: occurrenceId,
+      familyId: context.family.id,
+      familyMemberId: context.childMemberId,
+      status: { in: ["open", "in_progress"] },
+    },
+  });
+  if (!occurrence) redirect("/app/kids?error=invalid-task");
+
+  await db.taskOccurrence.update({
+    where: { id: occurrence.id },
+    data: { status: "done", doneAt: new Date() },
+  });
 }
 
 export { taskStatusLabels };
