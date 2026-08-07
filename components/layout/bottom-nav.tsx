@@ -7,7 +7,7 @@ const items: NavItem[] = [
   { href: "/app/family", label: "Familie", icon: "👨‍👩‍👧" },
   { href: "/app/finance", label: "Geld", icon: "💶" },
   { href: "/app/budget", label: "Budget", icon: "📊" },
-  { href: "/app/calendar", label: "Plan", icon: "🗓️" },
+  { href: "/app/planning", label: "Planung", icon: "🗓️" },
   { href: "/app/meals", label: "Essen", icon: "🍽️" },
   { href: "/app/relationships", label: "Beziehungen", icon: "🤝" },
   { href: "/app/kids", label: "Kids", icon: "🧒" },

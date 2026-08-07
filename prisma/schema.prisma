@@ -191,6 +191,24 @@ enum ChecklistStatus {
   ARCHIVED
 }
 
+enum PlanningType {
+  BIRTHDAY
+  VACATION
+  VISIT
+  OUTING
+}
+
+enum PlanningStatus {
+  ACTIVE
+  DONE
+  ARCHIVED
+}
+
+enum PlanningDocumentStatus {
+  OPEN
+  READY
+}
+
 enum MealKind {
   BREAKFAST
   LUNCH
@@ -285,6 +303,10 @@ model User {
   createdChecklistTemplates       ChecklistTemplate[]       @relation("ChecklistTemplateCreatedBy")
   createdChecklistInstances       ChecklistInstance[]       @relation("ChecklistInstanceCreatedBy")
   checkedChecklistItems           ChecklistItemInstance[]   @relation("ChecklistItemCheckedBy")
+  createdPlanningEvents           PlanningEvent[]           @relation("PlanningEventCreatedBy")
+  createdPlanningGuests           PlanningGuest[]           @relation("PlanningGuestCreatedBy")
+  createdPlanningGiftLists        PlanningGiftList[]        @relation("PlanningGiftListCreatedBy")
+  createdPlanningDocuments        PlanningDocument[]        @relation("PlanningDocumentCreatedBy")
   createdMealPlanEntries          MealPlanEntry[]           @relation("MealPlanEntryCreatedBy")
   createdRelationshipContacts     RelationshipContact[]     @relation("RelationshipContactCreatedBy")
   createdRelationshipGiftIdeas    RelationshipGiftIdea[]    @relation("RelationshipGiftIdeaCreatedBy")
@@ -346,6 +368,11 @@ model Family {
   competitionPlayers         CompetitionPlayer[]
   checklistTemplates         ChecklistTemplate[]
   checklistInstances         ChecklistInstance[]
+  planningEvents             PlanningEvent[]
+  planningMembers            PlanningMember[]
+  planningGuests             PlanningGuest[]
+  planningGiftLists          PlanningGiftList[]
+  planningDocuments          PlanningDocument[]
   mealPlanEntries            MealPlanEntry[]
   relationshipContacts       RelationshipContact[]
   relationshipPreferences    RelationshipPreference[]
@@ -414,6 +441,8 @@ model FamilyMember {
   mediaAllowanceRules    MediaAllowanceRule[]  @relation("MediaAllowanceRuleChild")
   mediaRestrictions      MediaRestriction[]    @relation("MediaRestrictionChild")
   assignedChecklists     ChecklistInstance[]   @relation("ChecklistAssignedMember")
+  planningMemberships    PlanningMember[]
+  planningDocuments      PlanningDocument[]    @relation("PlanningDocumentResponsible")
   mealPlanEntries        MealPlanEntry[]
   relationshipContacts   RelationshipContact[] @relation("RelationshipContactRelatedMember")
 
@@ -461,6 +490,7 @@ model RelationshipContact {
   preferences         RelationshipPreference[]
   giftLists           RelationshipGiftList[]
   projectGuests       ProjectGuest[]
+  planningGuests      PlanningGuest[]
 
   @@index([familyId, name])
   @@index([relatedFamilyMemberId])
@@ -500,7 +530,8 @@ model RelationshipGiftList {
 
   family    Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
   contact   RelationshipContact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  giftIdeas RelationshipGiftIdea[]
+  giftIdeas     RelationshipGiftIdea[]
+  planningLinks PlanningGiftList[]
 
   @@index([familyId, occasion])
   @@index([contactId])
@@ -730,6 +761,7 @@ model Project {
   expenses           ProjectExpense[]
   renovationProjects RenovationProject[]
   settlements        ProjectSettlement[]
+  planningEvent      PlanningEvent?
 
   @@index([familyId, createdAt])
   @@index([createdByUserId])
@@ -1216,6 +1248,7 @@ model BadgeAssignment {
 model TaskTemplate {
   id                   String             @id @default(cuid())
   familyId             String
+  planningEventId      String?
   title                String
   description          String?
   category             String
@@ -1237,6 +1270,7 @@ model TaskTemplate {
   updatedAt            DateTime           @updatedAt
 
   family             Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planningEvent      PlanningEvent?       @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
   createdBy          User                @relation("TaskTemplateCreatedBy", fields: [createdByUserId], references: [id])
   assignments        TaskAssignment[]
   subtasks           TaskSubTask[]
@@ -1244,6 +1278,7 @@ model TaskTemplate {
   checklistInstances ChecklistInstance[]
 
   @@index([familyId, isActive])
+  @@index([planningEventId])
   @@index([createdByUserId])
 }
 
@@ -1275,6 +1310,7 @@ model TaskSubTask {
 model TaskOccurrence {
   id                   String     @id @default(cuid())
   familyId             String
+  planningEventId      String?
   taskTemplateId       String
   familyMemberId       String
   titleSnapshot        String
@@ -1295,6 +1331,7 @@ model TaskOccurrence {
   updatedAt            DateTime   @updatedAt
 
   family                  Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planningEvent           PlanningEvent?          @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
   taskTemplate            TaskTemplate            @relation(fields: [taskTemplateId], references: [id], onDelete: Cascade)
   member                  FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
   confirmedBy             User?                   @relation("TaskOccurrenceConfirmedBy", fields: [confirmedByUserId], references: [id])
@@ -1303,6 +1340,7 @@ model TaskOccurrence {
   linkedMediaRestrictions MediaRestriction[]      @relation("MediaRestrictionLinkedTaskOccurrence")
 
   @@index([familyId, dueAt])
+  @@index([planningEventId, status])
   @@index([familyMemberId, dueAt])
   @@index([taskTemplateId])
   @@index([status])
@@ -1359,6 +1397,7 @@ model ChecklistTemplateItem {
 model ChecklistInstance {
   id                     String          @id @default(cuid())
   familyId               String
+  planningEventId        String?
   templateId             String?
   taskTemplateId         String?
   taskOccurrenceId       String?
@@ -1373,6 +1412,7 @@ model ChecklistInstance {
   updatedAt              DateTime        @updatedAt
 
   family         Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planningEvent  PlanningEvent?          @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
   template       ChecklistTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
   taskTemplate   TaskTemplate?           @relation(fields: [taskTemplateId], references: [id], onDelete: SetNull)
   taskOccurrence TaskOccurrence?         @relation(fields: [taskOccurrenceId], references: [id], onDelete: SetNull)
@@ -1381,6 +1421,7 @@ model ChecklistInstance {
   items          ChecklistItemInstance[]
 
   @@index([familyId, status])
+  @@index([planningEventId, status])
   @@index([taskOccurrenceId])
   @@index([assignedFamilyMemberId, status])
   @@index([createdByUserId])
@@ -1424,12 +1465,116 @@ model CalendarEvent {
   family    Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
   member    FamilyMember?   @relation(fields: [familyMemberId], references: [id], onDelete: SetNull)
   source    CalendarSource? @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  createdBy User            @relation(fields: [createdByUserId], references: [id])
+  createdBy     User            @relation(fields: [createdByUserId], references: [id])
+  planningEvent PlanningEvent?
 
   @@unique([sourceId, externalEventId])
   @@index([familyId, startsAt])
   @@index([familyMemberId, startsAt])
   @@index([sourceId])
+  @@index([createdByUserId])
+}
+
+model PlanningEvent {
+  id              String         @id @default(cuid())
+  familyId        String
+  type            PlanningType
+  status          PlanningStatus @default(ACTIVE)
+  calendarEventId String         @unique
+  costProjectId   String?        @unique
+  createdByUserId String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  family             Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  calendarEvent      CalendarEvent       @relation(fields: [calendarEventId], references: [id], onDelete: Cascade)
+  costProject        Project?            @relation(fields: [costProjectId], references: [id], onDelete: SetNull)
+  createdBy          User                @relation("PlanningEventCreatedBy", fields: [createdByUserId], references: [id])
+  members            PlanningMember[]
+  guests             PlanningGuest[]
+  giftLists          PlanningGiftList[]
+  documents          PlanningDocument[]
+  taskTemplates      TaskTemplate[]
+  taskOccurrences    TaskOccurrence[]
+  checklistInstances ChecklistInstance[]
+
+  @@index([familyId, status, createdAt])
+  @@index([createdByUserId])
+}
+
+model PlanningMember {
+  id              String   @id @default(cuid())
+  familyId        String
+  planningEventId String
+  familyMemberId  String
+  createdAt       DateTime @default(now())
+
+  family        Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planningEvent PlanningEvent @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
+  member        FamilyMember  @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([planningEventId, familyMemberId])
+  @@index([familyId, planningEventId])
+  @@index([familyMemberId])
+}
+
+model PlanningGuest {
+  id              String   @id @default(cuid())
+  familyId        String
+  planningEventId String
+  contactId       String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family        Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planningEvent PlanningEvent       @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
+  contact       RelationshipContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdBy     User                @relation("PlanningGuestCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([planningEventId, contactId])
+  @@index([familyId, planningEventId])
+  @@index([contactId])
+  @@index([createdByUserId])
+}
+
+model PlanningGiftList {
+  id              String   @id @default(cuid())
+  familyId        String
+  planningEventId String
+  giftListId      String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+
+  family        Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planningEvent PlanningEvent        @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
+  giftList      RelationshipGiftList @relation(fields: [giftListId], references: [id], onDelete: Cascade)
+  createdBy     User                 @relation("PlanningGiftListCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@unique([planningEventId, giftListId])
+  @@index([familyId, planningEventId])
+  @@index([giftListId])
+  @@index([createdByUserId])
+}
+
+model PlanningDocument {
+  id                        String                  @id @default(cuid())
+  familyId                  String
+  planningEventId           String
+  responsibleFamilyMemberId String?
+  title                     String
+  note                      String?
+  status                    PlanningDocumentStatus @default(OPEN)
+  createdByUserId           String
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+
+  family            Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  planningEvent     PlanningEvent  @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
+  responsibleMember FamilyMember?  @relation("PlanningDocumentResponsible", fields: [responsibleFamilyMemberId], references: [id], onDelete: SetNull)
+  createdBy         User           @relation("PlanningDocumentCreatedBy", fields: [createdByUserId], references: [id])
+
+  @@index([familyId, planningEventId])
+  @@index([responsibleFamilyMemberId, status])
   @@index([createdByUserId])
 }
 

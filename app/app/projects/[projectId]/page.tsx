@@ -68,6 +68,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
+      {project.planningEvent ? (
+        <Link href={`/app/planning/${project.planningEvent.id}`} className="flex items-center justify-between gap-3 rounded-2xl bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">
+          <span>🗓️ Mit einer Planung verknüpft</span>
+          <span>Öffnen →</span>
+        </Link>
+      ) : null}
+
       <section className="rounded-3xl bg-emerald-600 p-5 text-white shadow-sm">
         <p className="text-sm text-emerald-50">Gesamtausgaben</p>
         <h3 className="mt-2 text-3xl font-bold">{formatCents(balance.totalCents)}</h3>

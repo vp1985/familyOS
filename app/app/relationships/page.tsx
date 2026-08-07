@@ -168,7 +168,7 @@ export default async function RelationshipsPage({ searchParams }: { searchParams
                     {contact.giftLists.length > 0 ? (
                       <div className="space-y-3">
                         {contact.giftLists.map((list) => (
-                          <div key={list.id} className="rounded-2xl border border-violet-100 bg-violet-50/50 p-3">
+                          <div id={`gift-list-${list.id}`} key={list.id} className="scroll-mt-4 rounded-2xl border border-violet-100 bg-violet-50/50 p-3">
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="font-semibold text-slate-950">{list.title}</p>

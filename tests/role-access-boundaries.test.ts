@@ -14,6 +14,7 @@ test("parent-only data services require a family admin", () => {
     "lib/household-budget.ts",
     "lib/relationships.ts",
     "lib/projects.ts",
+    "lib/planning.ts",
     "lib/renovation.ts",
     "lib/rules.ts",
     "lib/tasks.ts",

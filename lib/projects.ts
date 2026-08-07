@@ -349,6 +349,7 @@ export async function getProjectDetail(projectId: string) {
   const project = await db.project.findFirst({
     where: { id: projectId, familyId: context.family.id },
     include: {
+      planningEvent: { select: { id: true } },
       participants: { include: { member: true }, orderBy: { createdAt: "asc" } },
       relationshipGuests: {
         include: { contact: { include: { preferences: true } } },
@@ -516,14 +517,22 @@ export async function updateProjectStatus(projectId: string, status: "active" | 
   const context = await requireFamilyAdmin();
   const project = await db.project.findFirst({
     where: { id: projectId, familyId: context.family.id },
-    select: { id: true },
+    select: { id: true, planningEvent: { select: { id: true } } },
   });
 
   if (!project) redirect("/app/projects?error=not-found");
 
-  await db.project.update({
-    where: { id: project.id },
-    data: { status },
+  await db.$transaction(async (tx) => {
+    if (project.planningEvent) {
+      await tx.planningEvent.update({
+        where: { id: project.planningEvent.id },
+        data: { status: status === "active" ? "ACTIVE" : status === "done" ? "DONE" : "ARCHIVED" },
+      });
+    }
+    await tx.project.update({
+      where: { id: project.id },
+      data: { status },
+    });
   });
 }
 

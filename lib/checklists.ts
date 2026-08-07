@@ -35,6 +35,36 @@ export type ChecklistCatalogTemplate = { id: string; title: string; description:
 
 export const checklistCatalog: ChecklistCatalogTemplate[] = [
   {
+    id: "geburtstag-vorbereitung",
+    title: "Geburtstag vorbereiten",
+    description: "Einladungen, Essen, Geschenke und Ablauf gemeinsam im Blick behalten.",
+    category: "Geburtstag",
+    kind: "GENERAL",
+    items: [
+      { title: "Gästeliste abstimmen" },
+      { title: "Einladungen verschicken" },
+      { title: "Allergien und Vorlieben prüfen" },
+      { title: "Essen und Getränke planen" },
+      { title: "Geschenke und Wunschliste prüfen", required: false },
+      { title: "Dekoration und Ablauf vorbereiten", required: false },
+    ],
+  },
+  {
+    id: "besuch-vorbereitung",
+    title: "Besuch vorbereiten",
+    description: "Die wichtigsten Vorbereitungen für Übernachtungs- oder Tagesbesuch.",
+    category: "Besuch",
+    kind: "GENERAL",
+    items: [
+      { title: "Ankunft und Abfahrt abstimmen" },
+      { title: "Schlafplätze vorbereiten", required: false },
+      { title: "Allergien und Vorlieben prüfen" },
+      { title: "Essen und Getränke planen" },
+      { title: "Handtücher und Bettwäsche bereitlegen", required: false },
+      { title: "Gemeinsamen Ablauf abstimmen", required: false },
+    ],
+  },
+  {
     id: "ausflug-tagesrucksack",
     title: "Ausflug: Tagesrucksack",
     description: "Grundliste für Schule, Zoo, Spielplatz oder Tagesausflug.",
