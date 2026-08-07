@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { ChecklistKind, ChecklistStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
+import { canAccessChecklist } from "@/lib/family-access-policy";
 
 export type ChecklistItemProgress = { checked: boolean; requiredSnapshot?: boolean | null };
 
@@ -377,11 +378,11 @@ export async function setChecklistItemChecked(itemId: string, checked: boolean) 
     include: { checklistInstance: { include: { items: true, taskOccurrence: true } } },
   });
   if (!item) redirect("/app/checklists?error=invalid-item");
-  if (
-    context.childMemberId
-    && item.checklistInstance.assignedFamilyMemberId !== context.childMemberId
-    && item.checklistInstance.taskOccurrence?.familyMemberId !== context.childMemberId
-  ) {
+  if (!canAccessChecklist(
+    context,
+    item.checklistInstance.assignedFamilyMemberId,
+    item.checklistInstance.taskOccurrence?.familyMemberId ?? null,
+  )) {
     redirect("/app/kids?error=forbidden-checklist-item");
   }
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { FamilyUserRole } from "@prisma/client";
 import { requireCurrentUser } from "@/lib/auth";
+import { resolveFamilyAdminOrChildScope } from "@/lib/family-access-policy";
 
 export async function requireFamilyContext() {
   const user = await requireCurrentUser();
@@ -49,14 +50,5 @@ export async function requireChildContext() {
 
 export async function requireFamilyAdminOrChild() {
   const context = await requireFamilyContext();
-
-  if (context.role === "owner" || context.role === "admin") {
-    return { ...context, childMemberId: null };
-  }
-
-  if (context.role === "child" && context.familyMemberId) {
-    return { ...context, childMemberId: context.familyMemberId };
-  }
-
-  throw new Error("Keine Berechtigung für diese Familienaktion.");
+  return { ...context, ...resolveFamilyAdminOrChildScope(context.role, context.familyMemberId) };
 }

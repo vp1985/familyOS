@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { FinanceAccountKind, MoneyTransactionType as PrismaMoneyTransactionType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
+import { canAccessChildMember } from "@/lib/family-access-policy";
 import { applyMoneyTransaction, formatCents, parseEuroToCents } from "@/lib/money";
 
 const transactionInputSchema = z.object({
@@ -180,7 +181,7 @@ export async function createChildCashAccount(formData: FormData) {
     name: formData.get("name")?.toString(),
   });
   if (!parsed.success) redirect("/app/kids?error=invalid-account");
-  if (context.childMemberId && parsed.data.childId !== context.childMemberId) redirect("/app/kids?error=forbidden-account");
+  if (!canAccessChildMember(context, parsed.data.childId)) redirect("/app/kids?error=forbidden-account");
 
   const child = await db.familyMember.findFirst({
     where: { id: parsed.data.childId, familyId: context.family.id, role: "child" },

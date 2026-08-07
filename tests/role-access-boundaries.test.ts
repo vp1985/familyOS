@@ -33,19 +33,20 @@ test("child-facing reads and writes derive their profile from the authenticated 
   const ledger = read("lib/child-ledger.ts");
   const finances = read("lib/finances.ts");
   const tasks = read("lib/tasks.ts");
+  const policy = read("lib/family-access-policy.ts");
   const kidsActions = read("app/app/kids/actions.ts");
 
   assert.match(context, /familyMemberId: familyUser\.familyMemberId/);
   assert.match(context, /requireChildContext/);
-  assert.match(context, /requireFamilyAdminOrChild/);
+  assert.match(context, /resolveFamilyAdminOrChildScope/);
+  assert.match(policy, /resolveFamilyAdminOrChildScope/);
   for (const source of [dashboard, money, media, checklists]) {
     assert.match(source, /requireFamilyAdminOrChild/);
     assert.match(source, /const childId = context\.childMemberId/);
   }
-  assert.match(ledger, /requireFamilyAdminOrChild/);
-  assert.match(ledger, /parsed\.data\.childId !== context\.childMemberId/);
-  assert.match(finances, /parsed\.data\.childId !== context\.childMemberId/);
-  assert.match(checklists, /assignedFamilyMemberId !== context\.childMemberId/);
+  assert.match(ledger, /canAccessChildMember/);
+  assert.match(finances, /canAccessChildMember/);
+  assert.match(checklists, /canAccessChecklist/);
   assert.match(tasks, /familyMemberId: context\.childMemberId/);
   assert.match(kidsActions, /markOwnTaskOccurrenceDone/);
 });
