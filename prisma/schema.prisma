@@ -412,6 +412,7 @@ model FamilyMember {
   birthday                   DateTime?
   childCanCreateCashAccounts Boolean          @default(true)
   childCashAccountLimit      Int              @default(5)
+  archivedAt                 DateTime?
   createdAt                  DateTime         @default(now())
   updatedAt                  DateTime         @updatedAt
 

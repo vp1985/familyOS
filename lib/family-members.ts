@@ -40,7 +40,7 @@ const defaultIcons: Record<ParsedFamilyMemberInput["role"], string> = {
 type InvalidFamilyMemberInput = { success: false };
 
 function isInvalidFamilyMemberInput(
-  input: ParsedFamilyMemberInput | InvalidFamilyMemberInput,
+  input: ParsedFamilyMemberInput | ParsedFamilyMemberEditInput | InvalidFamilyMemberInput,
 ): input is InvalidFamilyMemberInput {
   return "success" in input && input.success === false;
 }
@@ -60,15 +60,44 @@ export function parseFamilyMemberInput(input: FamilyMemberInput): ParsedFamilyMe
   };
 }
 
+export type FamilyMemberEditInput = {
+  name?: string;
+  color?: string;
+  icon?: string;
+};
+
+export type ParsedFamilyMemberEditInput = {
+  name: string;
+  color: string;
+  icon: string;
+};
+
+export function parseFamilyMemberEditInput(
+  input: FamilyMemberEditInput,
+  role: ParsedFamilyMemberInput["role"],
+): ParsedFamilyMemberEditInput | InvalidFamilyMemberInput {
+  const parsed = familyMemberInputSchema.pick({ name: true, color: true, icon: true }).safeParse(input);
+  if (!parsed.success) return { success: false };
+
+  return {
+    name: parsed.data.name,
+    color: parsed.data.color || defaultColors[role],
+    icon: parsed.data.icon || defaultIcons[role],
+  };
+}
+
+export function isArchivableFamilyMember(input: { archivedAt: Date | null; userRoles: string[] }) {
+  return input.archivedAt === null && input.userRoles.every((role) => role === "child");
+}
+
 export async function getFamilyMembers() {
   const context = await requireFamilyAdmin();
 
   const members = await db.familyMember.findMany({
-    where: { familyId: context.family.id },
+    where: { familyId: context.family.id, archivedAt: null },
     include: {
       userAccounts: {
-        where: { role: "child" },
-        select: { id: true, childLoginName: true, childAccountEnabled: true },
+        select: { id: true, role: true, childLoginName: true, childAccountEnabled: true },
       },
     },
     orderBy: [{ role: "asc" }, { createdAt: "asc" }],
@@ -116,6 +145,70 @@ export async function createFamilyMemberAction(formData: FormData) {
       });
     }
   });
+
+  revalidatePath("/app");
+  revalidatePath("/app/family");
+  redirect("/app/family");
+}
+
+export async function updateFamilyMemberAction(formData: FormData) {
+  "use server";
+
+  const context = await requireFamilyAdmin();
+  const memberId = formData.get("memberId")?.toString();
+  if (!memberId) redirect("/app/family?error=invalid-member");
+
+  const member = await db.familyMember.findFirst({
+    where: { id: memberId, familyId: context.family.id, archivedAt: null },
+    select: { role: true },
+  });
+  if (!member) redirect("/app/family?error=invalid-member");
+
+  const parsed = parseFamilyMemberEditInput({
+    name: formData.get("name")?.toString(),
+    color: formData.get("color")?.toString(),
+    icon: formData.get("icon")?.toString(),
+  }, member.role);
+  if (isInvalidFamilyMemberInput(parsed)) redirect("/app/family?error=invalid-member");
+
+  await db.familyMember.update({
+    where: { id: memberId },
+    data: parsed,
+  });
+
+  revalidatePath("/app");
+  revalidatePath("/app/family");
+  redirect("/app/family");
+}
+
+export async function archiveFamilyMemberAction(formData: FormData) {
+  "use server";
+
+  const context = await requireFamilyAdmin();
+  const memberId = formData.get("memberId")?.toString();
+  if (!memberId) redirect("/app/family?error=invalid-archive");
+
+  const member = await db.familyMember.findFirst({
+    where: { id: memberId, familyId: context.family.id },
+    select: { id: true, archivedAt: true, userAccounts: { select: { role: true } } },
+  });
+  if (!member || !isArchivableFamilyMember({
+    archivedAt: member.archivedAt,
+    userRoles: member.userAccounts.map((account) => account.role),
+  })) {
+    redirect("/app/family?error=invalid-archive");
+  }
+
+  await db.$transaction([
+    db.familyMember.update({
+      where: { id: member.id },
+      data: { archivedAt: new Date() },
+    }),
+    db.familyUser.updateMany({
+      where: { familyId: context.family.id, familyMemberId: member.id, role: "child" },
+      data: { childAccountEnabled: false },
+    }),
+  ]);
 
   revalidatePath("/app");
   revalidatePath("/app/family");

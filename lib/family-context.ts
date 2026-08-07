@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { FamilyUserRole } from "@prisma/client";
 import { requireCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { resolveFamilyAdminOrChildScope } from "@/lib/family-access-policy";
 
 export async function requireFamilyContext() {
@@ -9,6 +10,16 @@ export async function requireFamilyContext() {
 
   if (!familyUser) {
     redirect("/register");
+  }
+
+  if (familyUser.role === "child") {
+    const member = familyUser.familyMemberId
+      ? await db.familyMember.findFirst({
+        where: { id: familyUser.familyMemberId, familyId: familyUser.familyId, archivedAt: null },
+        select: { id: true },
+      })
+      : null;
+    if (!member || !familyUser.childAccountEnabled) redirect("/login");
   }
 
   return {
