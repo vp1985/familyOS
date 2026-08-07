@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createFinanceAccount, createMoneyTransaction, reverseMoneyTransaction, updateChildCashAccountSettings } from "@/lib/finances";
-import { createMoneyRule, deactivateMoneyRule, markMoneyOccurrenceStatus } from "@/lib/child-money";
+import { createMoneyRule, deactivateMoneyRule, markMoneyOccurrenceStatus, reverseMoneyOccurrence } from "@/lib/child-money";
 
 export async function createMoneyTransactionAction(formData: FormData) {
   await createMoneyTransaction(formData);
@@ -49,6 +49,19 @@ export async function deactivateMoneyRuleAction(formData: FormData) {
   const ruleId = formData.get("ruleId")?.toString();
   if (!ruleId) redirect("/app/finance?error=invalid-money-rule");
   await deactivateMoneyRule(ruleId);
+  redirect("/app/finance");
+}
+
+export async function reverseMoneyOccurrenceAction(formData: FormData) {
+  const occurrenceId = formData.get("occurrenceId")?.toString();
+  if (!occurrenceId) redirect("/app/finance?error=invalid-money-occurrence");
+
+  const reversal = await reverseMoneyOccurrence(occurrenceId);
+  if (!reversal) redirect("/app/finance?error=invalid-money-occurrence");
+
+  revalidatePath("/app");
+  revalidatePath("/app/finance");
+  revalidatePath("/app/kids");
   redirect("/app/finance");
 }
 

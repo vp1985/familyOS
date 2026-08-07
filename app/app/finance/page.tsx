@@ -7,6 +7,7 @@ import {
   createMoneyTransactionAction,
   deactivateMoneyRuleAction,
   markMoneyOccurrenceStatusAction,
+  reverseMoneyOccurrenceAction,
   reverseMoneyTransactionAction,
   updateChildCashAccountSettingsAction,
 } from "@/app/app/finance/actions";
@@ -28,6 +29,7 @@ function errorText(error?: string) {
   if (error === "invalid-money-status") return "Der Status konnte nicht gespeichert werden.";
   if (error === "invalid-account") return "Bitte wähle ein gültiges Konto aus.";
   if (error === "invalid-reversal") return "Diese Geldbewegung kann nicht storniert werden.";
+  if (error === "invalid-money-occurrence") return "Diese Monatsposition kann nicht storniert werden.";
   return null;
 }
 
@@ -250,15 +252,24 @@ export default async function FinancePage({
                     <p className="text-sm text-slate-500">{formatCents(occurrence.rule.direction === "EXPENSE" ? -occurrence.amountCentsSnapshot : occurrence.amountCentsSnapshot)} · {occurrence.destinationSnapshot || "kein Ziel"} · {moneyOccurrenceStatusLabel(occurrence.status)}{occurrence.bookedTransaction ? " · gebucht" : ""}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {statusOptions.map(([status, label]) => (
-                    <form action={markMoneyOccurrenceStatusAction} key={status}>
-                      <input type="hidden" name="occurrenceId" value={occurrence.id} />
-                      <input type="hidden" name="status" value={status} />
-                      <Button type="submit" className="min-h-10 px-3 text-sm">{label}</Button>
-                    </form>
-                  ))}
-                </div>
+                {occurrence.status === "REVERSED" || occurrence.bookedTransaction?.reversalTransaction ? (
+                  <p className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">Storniert</p>
+                ) : occurrence.bookedTransaction ? (
+                  <form action={reverseMoneyOccurrenceAction}>
+                    <input type="hidden" name="occurrenceId" value={occurrence.id} />
+                    <Button type="submit" className="min-h-10 bg-transparent px-3 text-sm text-slate-700 shadow-none ring-1 ring-slate-200 hover:bg-slate-100">Monatsposition stornieren</Button>
+                  </form>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {statusOptions.map(([status, label]) => (
+                      <form action={markMoneyOccurrenceStatusAction} key={status}>
+                        <input type="hidden" name="occurrenceId" value={occurrence.id} />
+                        <input type="hidden" name="status" value={status} />
+                        <Button type="submit" className="min-h-10 px-3 text-sm">{label}</Button>
+                      </form>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

@@ -66,6 +66,7 @@ enum MoneyOccurrenceStatus {
   TRANSFERRED
   SAVED
   SKIPPED
+  REVERSED
 }
 
 enum ChildLedgerVisibility {

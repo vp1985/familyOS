@@ -38,6 +38,8 @@ test("reversal policies create an offsetting entry only once for manual transact
   assert.equal(canReverseMoneyTransaction({ type: "loan", reversalTransactionId: "reversal-1", bookedOccurrenceCount: 0 }), false);
   assert.equal(canReverseMoneyTransaction({ type: "reversal", reversalTransactionId: null, bookedOccurrenceCount: 0 }), false);
   assert.equal(canReverseMoneyTransaction({ type: "allowance", reversalTransactionId: null, bookedOccurrenceCount: 1 }), false);
+  assert.equal(canReverseMoneyTransaction({ type: "allowance", reversalTransactionId: null, bookedOccurrenceCount: 1, allowBookedOccurrence: true }), true);
+  assert.equal(canReverseMoneyTransaction({ type: "allowance", reversalTransactionId: null, bookedOccurrenceCount: 2, allowBookedOccurrence: true }), false);
 });
 
 test("canChildCreateCashAccount respects parent flag and limit", () => {

@@ -72,8 +72,11 @@ export function canReverseMoneyTransaction(input: {
   type: PrismaMoneyTransactionType;
   reversalTransactionId: string | null;
   bookedOccurrenceCount: number;
+  allowBookedOccurrence?: boolean;
 }): boolean {
-  return input.type !== "reversal" && !input.reversalTransactionId && input.bookedOccurrenceCount === 0;
+  const bookingIsAllowed = input.bookedOccurrenceCount === 0
+    || (input.allowBookedOccurrence === true && input.bookedOccurrenceCount === 1);
+  return input.type !== "reversal" && !input.reversalTransactionId && bookingIsAllowed;
 }
 
 export async function ensureFinanceAccount(familyId: string, familyMemberId: string) {
@@ -261,7 +264,10 @@ export async function bookMoneyTransaction(input: {
   return transaction;
 }
 
-export async function reverseMoneyTransaction(transactionId: string) {
+export async function reverseMoneyTransaction(
+  transactionId: string,
+  options: { occurrenceId?: string } = {},
+) {
   const context = await requireFamilyAdmin();
 
   return db.$transaction(async (tx) => {
@@ -272,10 +278,13 @@ export async function reverseMoneyTransaction(transactionId: string) {
         bookedOccurrences: { select: { id: true } },
       },
     });
+    const allowsThisOccurrence = original?.bookedOccurrences.length === 1
+      && original.bookedOccurrences[0].id === options.occurrenceId;
     if (!original || !original.account || !canReverseMoneyTransaction({
       type: original.type,
       reversalTransactionId: original.reversalTransactionId,
       bookedOccurrenceCount: original.bookedOccurrences.length,
+      allowBookedOccurrence: allowsThisOccurrence,
     })) {
       return null;
     }
