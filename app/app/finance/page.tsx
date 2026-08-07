@@ -7,6 +7,7 @@ import {
   createMoneyTransactionAction,
   deactivateMoneyRuleAction,
   markMoneyOccurrenceStatusAction,
+  reverseMoneyTransactionAction,
   updateChildCashAccountSettingsAction,
 } from "@/app/app/finance/actions";
 import {
@@ -26,6 +27,7 @@ function errorText(error?: string) {
   if (error === "invalid-money-rule") return "Bitte fülle Kind, Titel und Betrag aus.";
   if (error === "invalid-money-status") return "Der Status konnte nicht gespeichert werden.";
   if (error === "invalid-account") return "Bitte wähle ein gültiges Konto aus.";
+  if (error === "invalid-reversal") return "Diese Geldbewegung kann nicht storniert werden.";
   return null;
 }
 
@@ -324,7 +326,7 @@ export default async function FinancePage({
           <div className="grid gap-3">
             {transactions.map((transaction) => (
               <Card key={transaction.id}>
-                <CardContent className="space-y-1">
+                <CardContent className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-slate-950">{transaction.title}</p>
                     <p className="font-bold text-slate-950">{formatCents(transaction.amountCents)}</p>
@@ -332,6 +334,16 @@ export default async function FinancePage({
                   <p className="text-sm text-slate-500">
                     {transaction.member.name}{transaction.account ? ` · ${transaction.account.name}` : ""} · {moneyTransactionLabel(transaction.type)} · Saldo {formatCents(transaction.balanceAfterCents)}
                   </p>
+                  {transaction.reversalTransaction ? (
+                    <p className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600">Storniert</p>
+                  ) : transaction.type !== "reversal" && transaction.bookedOccurrences.length === 0 ? (
+                    <form action={reverseMoneyTransactionAction}>
+                      <input type="hidden" name="transactionId" value={transaction.id} />
+                      <Button type="submit" className="min-h-10 bg-transparent px-3 text-sm text-slate-700 shadow-none ring-1 ring-slate-200 hover:bg-slate-100">Stornieren</Button>
+                    </form>
+                  ) : transaction.type !== "reversal" ? (
+                    <p className="text-xs font-semibold text-slate-500">Automatisch gebuchte Monatspositionen sind von dieser Storno-Funktion ausgenommen.</p>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}

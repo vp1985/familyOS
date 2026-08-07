@@ -39,6 +39,7 @@ const typeLabels: Record<PrismaMoneyTransactionType, string> = {
   repayment: "Rückzahlung",
   adjustment: "Korrektur",
   reward: "Aufgabenbonus",
+  reversal: "Storno",
 };
 
 const accountKindLabels: Record<FinanceAccountKind, string> = {
@@ -61,6 +62,18 @@ export function financeAccountKindLabel(kind: FinanceAccountKind) {
 export function signedTransactionAmount(type: PrismaMoneyTransactionType, amountCents: number): number {
   if (type === "loan") return -amountCents;
   return amountCents;
+}
+
+export function reversalAmountCents(originalAmountCents: number): number {
+  return -originalAmountCents;
+}
+
+export function canReverseMoneyTransaction(input: {
+  type: PrismaMoneyTransactionType;
+  reversalTransactionId: string | null;
+  bookedOccurrenceCount: number;
+}): boolean {
+  return input.type !== "reversal" && !input.reversalTransactionId && input.bookedOccurrenceCount === 0;
 }
 
 export async function ensureFinanceAccount(familyId: string, familyMemberId: string) {
@@ -108,7 +121,12 @@ export async function getChildFinanceOverview() {
     }),
     db.moneyTransaction.findMany({
       where: { familyId: context.family.id },
-      include: { member: true, account: true },
+      include: {
+        member: true,
+        account: true,
+        reversalTransaction: true,
+        bookedOccurrences: { select: { id: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: 12,
     }),
@@ -241,6 +259,59 @@ export async function bookMoneyTransaction(input: {
     }),
   ]);
   return transaction;
+}
+
+export async function reverseMoneyTransaction(transactionId: string) {
+  const context = await requireFamilyAdmin();
+
+  return db.$transaction(async (tx) => {
+    const original = await tx.moneyTransaction.findFirst({
+      where: { id: transactionId, familyId: context.family.id },
+      include: {
+        account: true,
+        bookedOccurrences: { select: { id: true } },
+      },
+    });
+    if (!original || !original.account || !canReverseMoneyTransaction({
+      type: original.type,
+      reversalTransactionId: original.reversalTransactionId,
+      bookedOccurrenceCount: original.bookedOccurrences.length,
+    })) {
+      return null;
+    }
+
+    const reversal = await tx.moneyTransaction.create({
+      data: {
+        familyId: context.family.id,
+        familyMemberId: original.familyMemberId,
+        financeAccountId: original.financeAccountId,
+        type: "reversal",
+        title: `Storno: ${original.title}`,
+        amountCents: reversalAmountCents(original.amountCents),
+        balanceAfterCents: 0,
+        createdByUserId: context.user.id,
+      },
+    });
+
+    const claimed = await tx.moneyTransaction.updateMany({
+      where: { id: original.id, reversalTransactionId: null },
+      data: { reversalTransactionId: reversal.id },
+    });
+    if (claimed.count !== 1) {
+      throw new Error("Die Geldbewegung wurde bereits storniert.");
+    }
+
+    const account = await tx.financeAccount.update({
+      where: { id: original.account.id },
+      data: { balanceCents: { increment: reversal.amountCents } },
+      select: { balanceCents: true },
+    });
+
+    return tx.moneyTransaction.update({
+      where: { id: reversal.id },
+      data: { balanceAfterCents: account.balanceCents },
+    });
+  });
 }
 
 export async function createMoneyTransaction(formData: FormData) {

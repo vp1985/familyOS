@@ -26,6 +26,7 @@ enum MoneyTransactionType {
   repayment
   adjustment
   reward
+  reversal
 }
 
 enum FinanceAccountKind {
@@ -601,16 +602,19 @@ model MoneyTransaction {
   financeAccountId  String?
   type              MoneyTransactionType
   title             String
-  amountCents       Int
-  balanceAfterCents Int
-  createdByUserId   String
-  createdAt         DateTime             @default(now())
+  amountCents           Int
+  balanceAfterCents     Int
+  createdByUserId       String
+  reversalTransactionId String?              @unique
+  createdAt             DateTime             @default(now())
 
-  family            Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  member            FamilyMember      @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
-  account           FinanceAccount?   @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
-  bookedOccurrences MoneyOccurrence[] @relation("MoneyOccurrenceBookedTransaction")
-  createdBy         User              @relation(fields: [createdByUserId], references: [id])
+  family              Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  member              FamilyMember      @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  account             FinanceAccount?   @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
+  bookedOccurrences   MoneyOccurrence[] @relation("MoneyOccurrenceBookedTransaction")
+  createdBy           User              @relation(fields: [createdByUserId], references: [id])
+  reversalTransaction MoneyTransaction? @relation("MoneyTransactionReversal", fields: [reversalTransactionId], references: [id])
+  reversedTransaction MoneyTransaction? @relation("MoneyTransactionReversal")
 
   @@index([familyId, createdAt])
   @@index([familyMemberId, createdAt])
