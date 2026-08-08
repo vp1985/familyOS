@@ -83,6 +83,56 @@ enum TaskStatus {
   missed
 }
 
+enum TaskPayMode {
+  NONE
+  FIXED_AMOUNT
+  HOURLY_RATE
+}
+
+enum TaskTimeStatus {
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskTimeSource {
+  TIMER
+  MANUAL
+  TIME_MARK_IMPORT
+}
+
+enum TaskTimeEventType {
+  STARTED
+  PAUSED
+  RESUMED
+  COMPLETED
+  CANCELLED
+  REVIEWED
+  IMPORTED
+}
+
+enum WorkAccountEntrySource {
+  TASK_TIME
+  PAYOUT
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum WorkPayoutRequestStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+  CANCELLED
+}
+
+enum WorkPayoutMethod {
+  CASH
+  TRANSFER
+  OTHER
+}
+
 enum TaskRecurrenceType {
   once
   daily
@@ -296,6 +346,14 @@ model User {
   createdCalendarSources          CalendarSource[]
   createdTaskTemplates            TaskTemplate[]            @relation("TaskTemplateCreatedBy")
   confirmedTaskOccurrences        TaskOccurrence[]          @relation("TaskOccurrenceConfirmedBy")
+  createdTaskTimeEntries          TaskTimeEntry[]           @relation("TaskTimeEntryCreatedBy")
+  reviewedTaskTimeEntries         TaskTimeEntry[]           @relation("TaskTimeEntryReviewedBy")
+  taskTimeEvents                  TaskTimeEvent[]           @relation("TaskTimeEventActor")
+  createdWorkAccountEntries       WorkAccountEntry[]        @relation("WorkAccountEntryCreatedBy")
+  requestedWorkPayouts            WorkPayoutRequest[]       @relation("WorkPayoutRequestRequestedBy")
+  reviewedWorkPayouts             WorkPayoutRequest[]       @relation("WorkPayoutRequestReviewedBy")
+  createdTimeMarkUserLinks        TimeMarkUserLink[]        @relation("TimeMarkUserLinkCreatedBy")
+  createdTimeMarkImportReceipts   TimeMarkImportReceipt[]   @relation("TimeMarkImportReceiptCreatedBy")
   createdMediaAllowanceRules      MediaAllowanceRule[]      @relation("MediaAllowanceRuleCreatedBy")
   createdMediaRestrictions        MediaRestriction[]        @relation("MediaRestrictionCreatedBy")
   releasedMediaRestrictions       MediaRestriction[]        @relation("MediaRestrictionReleasedBy")
@@ -378,6 +436,12 @@ model Family {
   relationshipPreferences    RelationshipPreference[]
   relationshipGiftLists      RelationshipGiftList[]
   relationshipGiftIdeas      RelationshipGiftIdea[]
+  taskTimeEntries            TaskTimeEntry[]
+  taskTimeEvents             TaskTimeEvent[]
+  workAccountEntries         WorkAccountEntry[]
+  workPayoutRequests         WorkPayoutRequest[]
+  timeMarkUserLinks          TimeMarkUserLink[]
+  timeMarkImportReceipts     TimeMarkImportReceipt[]
 }
 
 model FamilyUser {
@@ -446,6 +510,10 @@ model FamilyMember {
   planningDocuments      PlanningDocument[]    @relation("PlanningDocumentResponsible")
   mealPlanEntries        MealPlanEntry[]
   relationshipContacts   RelationshipContact[] @relation("RelationshipContactRelatedMember")
+  taskTimeEntries        TaskTimeEntry[]       @relation("TaskTimeEntryChild")
+  workAccountEntries     WorkAccountEntry[]    @relation("WorkAccountEntryChild")
+  workPayoutRequests     WorkPayoutRequest[]   @relation("WorkPayoutRequestChild")
+  timeMarkUserLinks      TimeMarkUserLink[]
 
   @@index([familyId])
 }
@@ -1247,31 +1315,37 @@ model BadgeAssignment {
 }
 
 model TaskTemplate {
-  id                   String             @id @default(cuid())
-  familyId             String
-  planningEventId      String?
-  title                String
-  description          String?
-  category             String
-  priority             String             @default("medium")
-  requiresConfirmation Boolean            @default(true)
-  recurrenceType       TaskRecurrenceType @default(once)
-  weekdays             Int[]              @default([])
-  startsAt             DateTime?
-  endsAt               DateTime?
-  dueTime              String?
-  drachmenReward       Int?
-  xpReward             Int?
-  moneyRewardCents     Int?
-  badgeRewardTitle     String?
-  badgeRewardIcon      String?
-  isActive             Boolean            @default(true)
-  createdByUserId      String
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                           String             @id @default(cuid())
+  familyId                     String
+  planningEventId              String?
+  title                        String
+  description                  String?
+  category                     String
+  priority                     String             @default("medium")
+  requiresConfirmation         Boolean            @default(true)
+  recurrenceType               TaskRecurrenceType @default(once)
+  weekdays                     Int[]              @default([])
+  startsAt                     DateTime?
+  endsAt                       DateTime?
+  dueTime                      String?
+  drachmenReward               Int?
+  xpReward                     Int?
+  moneyRewardCents             Int?
+  payMode                      TaskPayMode        @default(NONE)
+  fixedAmountCents             Int?
+  hourlyRateCents              Int?
+  expectedChildDurationMinutes Int?
+  timerWarningMinutes          Int?
+  unpaidTimeRequiresApproval   Boolean            @default(false)
+  badgeRewardTitle             String?
+  badgeRewardIcon              String?
+  isActive                     Boolean            @default(true)
+  createdByUserId              String
+  createdAt                    DateTime           @default(now())
+  updatedAt                    DateTime           @updatedAt
 
   family             Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  planningEvent      PlanningEvent?       @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
+  planningEvent      PlanningEvent?      @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
   createdBy          User                @relation("TaskTemplateCreatedBy", fields: [createdByUserId], references: [id])
   assignments        TaskAssignment[]
   subtasks           TaskSubTask[]
@@ -1309,27 +1383,33 @@ model TaskSubTask {
 }
 
 model TaskOccurrence {
-  id                   String     @id @default(cuid())
-  familyId             String
-  planningEventId      String?
-  taskTemplateId       String
-  familyMemberId       String
-  titleSnapshot        String
-  dueAt                DateTime?
-  status               TaskStatus @default(open)
-  requiresConfirmation Boolean    @default(true)
-  doneAt               DateTime?
-  confirmedAt          DateTime?
-  confirmedByUserId    String?
-  drachmenReward       Int?
-  xpReward             Int?
-  moneyRewardCents     Int?
-  badgeRewardTitle     String?
-  badgeRewardIcon      String?
-  rewardBookedAt       DateTime?
-  note                 String?
-  createdAt            DateTime   @default(now())
-  updatedAt            DateTime   @updatedAt
+  id                           String      @id @default(cuid())
+  familyId                     String
+  planningEventId              String?
+  taskTemplateId               String
+  familyMemberId               String
+  titleSnapshot                String
+  dueAt                        DateTime?
+  status                       TaskStatus  @default(open)
+  requiresConfirmation         Boolean     @default(true)
+  doneAt                       DateTime?
+  confirmedAt                  DateTime?
+  confirmedByUserId            String?
+  drachmenReward               Int?
+  xpReward                     Int?
+  moneyRewardCents             Int?
+  payMode                      TaskPayMode @default(NONE)
+  fixedAmountCents             Int?
+  hourlyRateCents              Int?
+  expectedChildDurationMinutes Int?
+  timerWarningMinutes          Int?
+  unpaidTimeRequiresApproval   Boolean     @default(false)
+  badgeRewardTitle             String?
+  badgeRewardIcon              String?
+  rewardBookedAt               DateTime?
+  note                         String?
+  createdAt                    DateTime    @default(now())
+  updatedAt                    DateTime    @updatedAt
 
   family                  Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
   planningEvent           PlanningEvent?          @relation(fields: [planningEventId], references: [id], onDelete: Cascade)
@@ -1339,12 +1419,177 @@ model TaskOccurrence {
   subtasks                TaskOccurrenceSubTask[]
   checklistInstances      ChecklistInstance[]
   linkedMediaRestrictions MediaRestriction[]      @relation("MediaRestrictionLinkedTaskOccurrence")
+  timeEntries             TaskTimeEntry[]
 
   @@index([familyId, dueAt])
   @@index([planningEventId, status])
   @@index([familyMemberId, dueAt])
   @@index([taskTemplateId])
   @@index([status])
+}
+
+model TaskTimeEntry {
+  id                           String         @id @default(cuid())
+  familyId                     String
+  taskOccurrenceId             String
+  childId                      String
+  createdByUserId              String?
+  source                       TaskTimeSource @default(TIMER)
+  status                       TaskTimeStatus @default(RUNNING)
+  startedAt                    DateTime
+  endedAt                      DateTime?
+  accumulatedPauseSeconds      Int            @default(0)
+  payMode                      TaskPayMode    @default(NONE)
+  fixedAmountCents             Int?
+  hourlyRateCents              Int?
+  expectedChildDurationMinutes Int?
+  timerWarningMinutes          Int?
+  unpaidTimeRequiresApproval   Boolean        @default(false)
+  completionReason             String?
+  cancellationReason           String?
+  reviewedAt                   DateTime?
+  reviewedByUserId             String?
+  reviewReason                 String?
+  timeMarkImportReceiptId      String?
+  importReference              String?
+  createdAt                    DateTime       @default(now())
+  updatedAt                    DateTime       @updatedAt
+
+  family                Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  taskOccurrence        TaskOccurrence         @relation(fields: [taskOccurrenceId], references: [id], onDelete: Restrict)
+  child                 FamilyMember           @relation("TaskTimeEntryChild", fields: [childId], references: [id], onDelete: Restrict)
+  createdBy             User?                  @relation("TaskTimeEntryCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  reviewedBy            User?                  @relation("TaskTimeEntryReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  timeMarkImportReceipt TimeMarkImportReceipt? @relation(fields: [timeMarkImportReceiptId], references: [id], onDelete: SetNull)
+  pauses                TaskTimePause[]
+  events                TaskTimeEvent[]
+  workAccountEntries    WorkAccountEntry[]
+
+  @@index([familyId, status, startedAt])
+  @@index([taskOccurrenceId, startedAt])
+  @@index([childId, startedAt])
+  @@index([timeMarkImportReceiptId])
+}
+
+model TaskTimePause {
+  id              String    @id @default(cuid())
+  taskTimeEntryId String
+  startedAt       DateTime
+  endedAt         DateTime?
+  createdAt       DateTime  @default(now())
+
+  taskTimeEntry TaskTimeEntry @relation(fields: [taskTimeEntryId], references: [id], onDelete: Cascade)
+
+  @@index([taskTimeEntryId, startedAt])
+}
+
+model TaskTimeEvent {
+  id              String            @id @default(cuid())
+  familyId        String
+  taskTimeEntryId String
+  type            TaskTimeEventType
+  actorUserId     String?
+  occurredAt      DateTime          @default(now())
+  reason          String?
+  createdAt       DateTime          @default(now())
+
+  family        Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  taskTimeEntry TaskTimeEntry @relation(fields: [taskTimeEntryId], references: [id], onDelete: Cascade)
+  actor         User?         @relation("TaskTimeEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, occurredAt])
+  @@index([taskTimeEntryId, occurredAt])
+}
+
+model WorkAccountEntry {
+  id                String                 @id @default(cuid())
+  familyId          String
+  childId           String
+  amountCents       Int
+  balanceAfterCents Int
+  source            WorkAccountEntrySource
+  taskTimeEntryId   String?                @unique
+  payoutRequestId   String?                @unique
+  reversedEntryId   String?                @unique
+  createdByUserId   String?
+  note              String?
+  createdAt         DateTime               @default(now())
+
+  family        Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child         FamilyMember       @relation("WorkAccountEntryChild", fields: [childId], references: [id], onDelete: Restrict)
+  taskTimeEntry TaskTimeEntry?     @relation(fields: [taskTimeEntryId], references: [id], onDelete: Restrict)
+  payoutRequest WorkPayoutRequest? @relation(fields: [payoutRequestId], references: [id], onDelete: Restrict)
+  reversedEntry WorkAccountEntry?  @relation("WorkAccountEntryReversal", fields: [reversedEntryId], references: [id], onDelete: SetNull)
+  reversalEntry WorkAccountEntry?  @relation("WorkAccountEntryReversal")
+  createdBy     User?              @relation("WorkAccountEntryCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, childId, createdAt])
+}
+
+model WorkPayoutRequest {
+  id                String                  @id @default(cuid())
+  familyId          String
+  childId           String
+  amountCents       Int
+  status            WorkPayoutRequestStatus @default(PENDING)
+  method            WorkPayoutMethod
+  requestedByUserId String?
+  requestedAt       DateTime                @default(now())
+  reviewedByUserId  String?
+  reviewedAt        DateTime?
+  paidAt            DateTime?
+  rejectedAt        DateTime?
+  cancelledAt       DateTime?
+  note              String?
+  reviewReason      String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  family           Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child            FamilyMember      @relation("WorkPayoutRequestChild", fields: [childId], references: [id], onDelete: Restrict)
+  requestedBy      User?             @relation("WorkPayoutRequestRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  reviewedBy       User?             @relation("WorkPayoutRequestReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  workAccountEntry WorkAccountEntry?
+
+  @@index([familyId, status, requestedAt])
+  @@index([childId, status, requestedAt])
+}
+
+model TimeMarkUserLink {
+  id                    String   @id @default(cuid())
+  familyId              String
+  familyMemberId        String
+  externalUserReference String
+  createdByUserId       String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  family         Family                  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  familyMember   FamilyMember            @relation(fields: [familyMemberId], references: [id], onDelete: Restrict)
+  createdBy      User?                   @relation("TimeMarkUserLinkCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  importReceipts TimeMarkImportReceipt[]
+
+  @@unique([familyId, familyMemberId])
+  @@unique([familyId, externalUserReference])
+  @@index([familyMemberId])
+}
+
+model TimeMarkImportReceipt {
+  id                      String   @id @default(cuid())
+  familyId                String
+  timeMarkUserLinkId      String
+  externalImportReference String
+  importedByUserId        String?
+  importedAt              DateTime @default(now())
+  createdAt               DateTime @default(now())
+
+  family           Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  timeMarkUserLink TimeMarkUserLink @relation(fields: [timeMarkUserLinkId], references: [id], onDelete: Restrict)
+  importedBy       User?            @relation("TimeMarkImportReceiptCreatedBy", fields: [importedByUserId], references: [id], onDelete: SetNull)
+  taskTimeEntries  TaskTimeEntry[]
+
+  @@unique([timeMarkUserLinkId, externalImportReference])
+  @@index([familyId, importedAt])
 }
 
 model TaskOccurrenceSubTask {
