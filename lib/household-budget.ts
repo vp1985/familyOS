@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { HouseholdBudgetDirection, HouseholdBudgetKind } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
 
 export const householdBudgetCategorySuggestions = [
@@ -91,7 +91,7 @@ export function summarizeHouseholdBudget(input: {
 }
 
 export async function getHouseholdBudgetData(month?: string) {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const selectedMonth = parseBudgetMonth(month);
   const [planItems, entries] = await Promise.all([
     db.householdBudgetPlanItem.findMany({

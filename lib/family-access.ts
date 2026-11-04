@@ -238,3 +238,19 @@ export async function updateFamilyBadgeVisibilityAction(formData: FormData) {
   revalidatePath("/app/kids");
   redirect("/app/settings");
 }
+
+export async function updateRenovationModuleSettingAction(formData: FormData) {
+  "use server";
+
+  const context = await requireFamilyAdmin();
+  const enabled = formData.get("renovationModuleEnabled")?.toString() === "on";
+  await db.family.update({
+    where: { id: context.family.id },
+    data: { renovationModuleEnabled: enabled },
+  });
+
+  revalidatePath("/app");
+  revalidatePath("/app/settings");
+  revalidatePath("/app/renovation");
+  redirect(enabled ? "/app/renovation" : "/app/settings");
+}

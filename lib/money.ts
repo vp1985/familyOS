@@ -1,4 +1,4 @@
-export type MoneyTransactionType = "allowance" | "loan" | "repayment" | "adjustment" | "reward";
+export type MoneyTransactionType = "allowance" | "loan" | "repayment" | "adjustment" | "reward" | "reversal";
 
 export function parseEuroToCents(value: string): number | null {
   const cleaned = value.trim().replace(/€/g, "").trim().replace(",", ".");
@@ -31,7 +31,7 @@ export function applyMoneyTransaction(
   type: MoneyTransactionType,
   amountCents: number,
 ): number {
-  if (type === "allowance" || type === "repayment") {
+  if (type === "allowance" || type === "repayment" || type === "reversal") {
     return currentBalanceCents + amountCents;
   }
 

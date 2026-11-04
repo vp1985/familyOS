@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 const calendarEventInputSchema = z.object({
   title: z.string().trim().min(2),
@@ -257,9 +257,9 @@ export function groupEventsByDay<T extends CalendarEventLike>(events: T[], weekS
   });
 }
 
-export async function getCalendarPageData() {
-  const context = await requireFamilyContext();
-  const week = getWeekRange();
+export async function getCalendarPageData(referenceDate = new Date()) {
+  const context = await requireFamilyAdmin();
+  const week = getWeekRange(referenceDate);
 
   const [members, events, sources] = await Promise.all([
     db.familyMember.findMany({ where: { familyId: context.family.id }, orderBy: [{ role: "asc" }, { createdAt: "asc" }] }),
@@ -268,7 +268,7 @@ export async function getCalendarPageData() {
         familyId: context.family.id,
         startsAt: { gte: week.start, lt: week.end },
       },
-      include: { member: true, source: true },
+      include: { member: true, source: true, planningEvent: { select: { id: true } } },
       orderBy: { startsAt: "asc" },
     }),
     db.calendarSource.findMany({

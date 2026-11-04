@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ChildLedgerVisibility, MoneyDirection } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdminOrChild } from "@/lib/family-context";
+import { canAccessChildMember } from "@/lib/family-access-policy";
 import { parseEuroToCents } from "@/lib/money";
 import { bookMoneyTransaction } from "@/lib/finances";
 import type { ChildMoneyDirection } from "./child-money";
@@ -52,7 +53,7 @@ export function canDeleteChildLedgerEntry(
 }
 
 export async function createChildLedgerEntry(formData: FormData) {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
   const parsed = ledgerEntrySchema.safeParse({
     childId: formData.get("childId")?.toString(),
     financeAccountId: formData.get("financeAccountId")?.toString(),
@@ -65,6 +66,7 @@ export async function createChildLedgerEntry(formData: FormData) {
   });
 
   if (!parsed.success) redirect("/app/kids?error=invalid-ledger-entry");
+  if (!canAccessChildMember(context, parsed.data.childId)) redirect("/app/kids?error=forbidden-ledger-entry");
   const amountCents = parseEuroToCents(parsed.data.amount);
   if (amountCents === null || amountCents <= 0) redirect("/app/kids?error=invalid-amount");
 
@@ -110,10 +112,11 @@ export async function createChildLedgerEntry(formData: FormData) {
 }
 
 export async function deleteChildLedgerEntry(formData: FormData) {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
   const entryId = formData.get("entryId")?.toString();
   const childId = formData.get("childId")?.toString();
   if (!entryId || !childId) redirect("/app/kids?error=invalid-ledger-entry");
+  if (!canAccessChildMember(context, childId)) redirect("/app/kids?error=forbidden-ledger-delete");
 
   const entry = await db.childLedgerEntry.findFirst({
     where: { id: entryId, familyId: context.family.id, childId },

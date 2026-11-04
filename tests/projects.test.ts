@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  buildProjectGuestPreferenceSummary,
   buildProjectSettlementSuggestions,
   calculateProjectBalance,
   parseExpenseInput,
+  parseProjectGuestInput,
   parseProjectInput,
   splitEvenly,
 } from "../lib/projects";
@@ -145,4 +147,56 @@ test("project detail route exposes settlement actions", () => {
   assert.match(detailPage, /Abrechnung/);
   assert.match(detailPage, /Ausgleich vorbereiten/);
   assert.match(detailPage, /Bezahlt markieren/);
+});
+
+test("parseProjectGuestInput dedupliziert eingeladene Beziehungskontakte", () => {
+  assert.deepEqual(parseProjectGuestInput({ contactIds: [" c1 ", "c2", "c1", ""] }), {
+    contactIds: ["c1", "c2"],
+  });
+
+  assert.deepEqual(parseProjectGuestInput({ contactIds: [] }), { success: false });
+});
+
+test("buildProjectGuestPreferenceSummary gruppiert Einkaufshinweise nach Vorlieben und Sicherheits-Hinweisen", () => {
+  const summary = buildProjectGuestPreferenceSummary([
+    {
+      contact: {
+        name: "Max",
+        preferences: [
+          { category: "DRINK", label: " Spezi ", sentiment: "LIKES", isFavorite: false },
+          { category: "ALLERGY", label: "Erdnüsse", sentiment: "NOTE", isFavorite: false },
+        ],
+      },
+    },
+    {
+      contact: {
+        name: "Tom",
+        preferences: [
+          { category: "DRINK", label: "Spezi", sentiment: "LIKES", isFavorite: true },
+          { category: "FOOD", label: "Chips", sentiment: "DISLIKES", isFavorite: false },
+        ],
+      },
+    },
+  ]);
+
+  assert.deepEqual(summary.map((group) => group.category), ["ALLERGY", "DRINK", "FOOD"]);
+  assert.deepEqual(summary[0].entries, [
+    { label: "Erdnüsse", sentiment: "NOTE", contactNames: ["Max"], isFavorite: false, isSafetyHint: true },
+  ]);
+  assert.deepEqual(summary[1].entries, [
+    { label: "Spezi", sentiment: "LIKES", contactNames: ["Max", "Tom"], isFavorite: true, isSafetyHint: false },
+  ]);
+});
+
+test("project detail route exposes relationship guests and preference hints", () => {
+  const detailPage = readFileSync("app/app/projects/[projectId]/page.tsx", "utf8");
+  const actions = readFileSync("app/app/projects/actions.ts", "utf8");
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+
+  assert.match(schema, /model ProjectGuest/);
+  assert.match(schema, /relationshipGuests\s+ProjectGuest\[\]/);
+  assert.match(actions, /addProjectGuestsAction/);
+  assert.match(detailPage, /addProjectGuestsAction/);
+  assert.match(detailPage, /Gäste & Einkaufshinweise/);
+  assert.match(detailPage, /Vorlieben anzeigen/);
 });

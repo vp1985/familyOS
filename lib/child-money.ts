@@ -3,12 +3,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { MoneyDirection, MoneyOccurrenceStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { requireFamilyAdmin, requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
 import { parseEuroToCents } from "@/lib/money";
-import { bookMoneyTransaction } from "@/lib/finances";
+import { bookMoneyTransaction, reverseMoneyTransaction } from "@/lib/finances";
 
 export type ChildMoneyDirection = "INCOME" | "EXPENSE";
-export type ChildMoneyOccurrenceStatus = "OPEN" | "PAID_CASH" | "TRANSFERRED" | "SAVED" | "SKIPPED";
+export type ChildMoneyOccurrenceStatus = "OPEN" | "PAID_CASH" | "TRANSFERRED" | "SAVED" | "SKIPPED" | "REVERSED";
 
 export type ChildMoneyRuleInput = {
   id: string;
@@ -40,6 +40,7 @@ const statusLabels: Record<ChildMoneyOccurrenceStatus, string> = {
   TRANSFERRED: "Überwiesen",
   SAVED: "Gespart / zurückgelegt",
   SKIPPED: "Ausgelassen",
+  REVERSED: "Storniert",
 };
 
 const moneyRuleSchema = z.object({
@@ -98,6 +99,14 @@ export function moneyOccurrenceStatusLabel(status: ChildMoneyOccurrenceStatus | 
   return statusLabels[status as ChildMoneyOccurrenceStatus];
 }
 
+export function canReverseMoneyOccurrence(input: {
+  status: ChildMoneyOccurrenceStatus | MoneyOccurrenceStatus;
+  bookedTransactionId: string | null;
+  reversalTransactionId: string | null;
+}): boolean {
+  return input.status !== "REVERSED" && Boolean(input.bookedTransactionId) && !input.reversalTransactionId;
+}
+
 async function bookOccurrenceIfNeeded(occurrenceId: string, userId: string) {
   const occurrence = await db.moneyOccurrence.findUnique({
     where: { id: occurrenceId },
@@ -150,7 +159,7 @@ export async function ensureMoneyOccurrencesForMonth(familyId: string, dueMonth 
 }
 
 export async function getChildMoneyOverview() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
   const dueMonth = monthKey();
   await ensureMoneyOccurrencesForMonth(context.family.id, dueMonth);
 
@@ -174,7 +183,7 @@ export async function getChildMoneyOverview() {
     }),
     db.moneyOccurrence.findMany({
       where: { familyId: context.family.id, dueMonth },
-      include: { child: true, rule: true, bookedTransaction: true },
+      include: { child: true, rule: true, bookedTransaction: { include: { reversalTransaction: true } } },
       orderBy: { createdAt: "asc" },
     }),
     db.financeAccount.findMany({
@@ -188,12 +197,13 @@ export async function getChildMoneyOverview() {
 }
 
 export async function getKidsMoneyData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
+  const childId = context.childMemberId;
   const dueMonth = monthKey();
   await ensureMoneyOccurrencesForMonth(context.family.id, dueMonth);
 
   const children = await db.familyMember.findMany({
-    where: { familyId: context.family.id, role: "child" },
+    where: { familyId: context.family.id, role: "child", ...(childId ? { id: childId } : {}) },
     include: {
       financeAccounts: { orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] },
       moneyRules: { where: { active: true, visibleToChild: true }, include: { account: true }, orderBy: { createdAt: "asc" } },
@@ -267,6 +277,32 @@ export async function deactivateMoneyRule(ruleId: string) {
   revalidatePath("/app/kids");
 }
 
+export async function reverseMoneyOccurrence(occurrenceId: string) {
+  const context = await requireFamilyAdmin();
+  const occurrence = await db.moneyOccurrence.findFirst({
+    where: { id: occurrenceId, familyId: context.family.id },
+    include: { bookedTransaction: { include: { reversalTransaction: true } } },
+  });
+  if (!occurrence || !canReverseMoneyOccurrence({
+    status: occurrence.status,
+    bookedTransactionId: occurrence.bookedTransactionId,
+    reversalTransactionId: occurrence.bookedTransaction?.reversalTransactionId ?? null,
+  })) {
+    return null;
+  }
+
+  const reversal = await reverseMoneyTransaction(occurrence.bookedTransactionId!, { occurrenceId: occurrence.id });
+  if (!reversal) return null;
+
+  const updated = await db.moneyOccurrence.updateMany({
+    where: { id: occurrence.id, familyId: context.family.id, status: { not: "REVERSED" } },
+    data: { status: "REVERSED", confirmedByParentId: context.user.id, confirmedAt: new Date() },
+  });
+  if (updated.count !== 1) throw new Error("Die Monatsposition wurde bereits storniert.");
+
+  return reversal;
+}
+
 export async function markMoneyOccurrenceStatus(formData: FormData) {
   const context = await requireFamilyAdmin();
   const parsed = occurrenceStatusSchema.safeParse({
@@ -275,8 +311,15 @@ export async function markMoneyOccurrenceStatus(formData: FormData) {
   });
   if (!parsed.success) redirect("/app/finance?error=invalid-money-status");
 
-  const occurrence = await db.moneyOccurrence.update({
+  const existing = await db.moneyOccurrence.findFirst({
     where: { id: parsed.data.occurrenceId, familyId: context.family.id },
+  });
+  if (!existing || existing.bookedTransactionId || existing.status === "REVERSED") {
+    redirect("/app/finance?error=invalid-money-status");
+  }
+
+  const occurrence = await db.moneyOccurrence.update({
+    where: { id: existing.id },
     data: {
       status: parsed.data.status as MoneyOccurrenceStatus,
       confirmedByParentId: parsed.data.status === "OPEN" ? null : context.user.id,

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/button";
-import { createFamilyMemberAction, getFamilyMembers } from "@/lib/family-members";
+import { archiveFamilyMemberAction, createFamilyMemberAction, getFamilyMembers, updateFamilyMemberAction } from "@/lib/family-members";
 import { createChildAccountAction } from "@/lib/family-access";
 
 function roleLabel(role: string) {
@@ -17,6 +17,7 @@ export default async function FamilyPage({
 }) {
   const [{ context, members }, params] = await Promise.all([getFamilyMembers(), searchParams]);
   const hasError = params.error === "invalid-member";
+  const hasArchiveError = params.error === "invalid-archive";
 
   return (
     <div className="space-y-5">
@@ -25,6 +26,8 @@ export default async function FamilyPage({
         <h2 className="text-2xl font-bold text-slate-950">Familie</h2>
         <p className="mt-1 text-sm text-slate-600">Kinder und Familienprofile für spätere Finanzen, Projekte und Regeln.</p>
       </div>
+
+      {hasArchiveError ? <p className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Dieses Profil kann nicht archiviert werden.</p> : null}
 
       <Card>
         <CardHeader>
@@ -82,6 +85,23 @@ export default async function FamilyPage({
                       <p className="text-sm text-slate-500">{roleLabel(member.role)}</p>
                     </div>
                   </div>
+                  <form action={updateFamilyMemberAction} className="grid gap-3 rounded-3xl bg-slate-50 p-4 sm:grid-cols-2">
+                    <input type="hidden" name="memberId" value={member.id} />
+                    <FormField label="Name" name="name" defaultValue={member.name} required />
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField label="Icon" name="icon" defaultValue={member.icon ?? ""} maxLength={4} />
+                      <FormField label="Farbe" name="color" defaultValue={member.color ?? ""} />
+                    </div>
+                    <Button type="submit" className="sm:col-span-2">Profil speichern</Button>
+                  </form>
+                  {member.userAccounts.every((account) => account.role === "child") ? (
+                    <form action={archiveFamilyMemberAction}>
+                      <input type="hidden" name="memberId" value={member.id} />
+                      <Button type="submit" className="w-full bg-slate-200 text-slate-900 hover:bg-slate-300">Profil archivieren</Button>
+                    </form>
+                  ) : (
+                    <p className="text-xs text-slate-500">Profile mit Eltern- oder Betreuer-Login können nicht archiviert werden.</p>
+                  )}
                   {member.role === "child" ? (
                     <form action={createChildAccountAction} className="space-y-3 rounded-3xl bg-slate-50 p-4">
                       <input type="hidden" name="familyMemberId" value={member.id} />

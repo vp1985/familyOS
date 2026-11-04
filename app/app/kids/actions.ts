@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { updateTaskOccurrenceStatus } from "@/lib/tasks";
+import { markOwnTaskOccurrenceDone } from "@/lib/tasks";
 import { createChildLedgerEntry, deleteChildLedgerEntry } from "@/lib/child-ledger";
 import { createChildCashAccount } from "@/lib/finances";
 import { setChecklistItemChecked } from "@/lib/checklists";
@@ -10,7 +10,7 @@ import { setChecklistItemChecked } from "@/lib/checklists";
 export async function markKidsTaskDoneAction(formData: FormData) {
   const occurrenceId = formData.get("occurrenceId")?.toString();
   if (!occurrenceId) redirect("/app/kids?error=invalid-task");
-  await updateTaskOccurrenceStatus(occurrenceId, "done");
+  await markOwnTaskOccurrenceDone(occurrenceId);
   revalidatePath("/app/kids");
   revalidatePath("/app");
   redirect("/app/kids");

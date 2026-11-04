@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyMoneyTransaction, formatCents, parseEuroToCents } from "../lib/money";
-import { canChildCreateCashAccount, childCashAccountNameSuggestions } from "../lib/finances";
+import { canChildCreateCashAccount, canReverseMoneyTransaction, childCashAccountNameSuggestions, reversalAmountCents } from "../lib/finances";
 
 test("parseEuroToCents accepts German comma and dot formats", () => {
   assert.equal(parseEuroToCents("10"), 1000);
@@ -28,6 +28,18 @@ test("applyMoneyTransaction updates child balance by transaction type", () => {
   assert.equal(applyMoneyTransaction(1000, "loan", 250), 750);
   assert.equal(applyMoneyTransaction(1000, "repayment", 250), 1250);
   assert.equal(applyMoneyTransaction(1000, "adjustment", 250), 250);
+  assert.equal(applyMoneyTransaction(1000, "reversal", -500), 500);
+});
+
+test("reversal policies create an offsetting entry only once for manual transactions", () => {
+  assert.equal(reversalAmountCents(500), -500);
+  assert.equal(reversalAmountCents(-500), 500);
+  assert.equal(canReverseMoneyTransaction({ type: "allowance", reversalTransactionId: null, bookedOccurrenceCount: 0 }), true);
+  assert.equal(canReverseMoneyTransaction({ type: "loan", reversalTransactionId: "reversal-1", bookedOccurrenceCount: 0 }), false);
+  assert.equal(canReverseMoneyTransaction({ type: "reversal", reversalTransactionId: null, bookedOccurrenceCount: 0 }), false);
+  assert.equal(canReverseMoneyTransaction({ type: "allowance", reversalTransactionId: null, bookedOccurrenceCount: 1 }), false);
+  assert.equal(canReverseMoneyTransaction({ type: "allowance", reversalTransactionId: null, bookedOccurrenceCount: 1, allowBookedOccurrence: true }), true);
+  assert.equal(canReverseMoneyTransaction({ type: "allowance", reversalTransactionId: null, bookedOccurrenceCount: 2, allowBookedOccurrence: true }), false);
 });
 
 test("canChildCreateCashAccount respects parent flag and limit", () => {

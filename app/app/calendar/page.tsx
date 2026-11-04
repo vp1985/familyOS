@@ -17,19 +17,26 @@ function isoDate(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
+function weekReference(value?: string) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return new Date();
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) || isoDate(date) !== value ? new Date() : date;
+}
+
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; week?: string; event?: string }>;
 }) {
-  const [{ members, sources, week, days }, params] = await Promise.all([getCalendarPageData(), searchParams]);
+  const params = await searchParams;
+  const { members, sources, week, days } = await getCalendarPageData(weekReference(params.week));
   const error = errorText(params.error);
 
   return (
     <div className="space-y-5">
       <section className="rounded-[2rem] bg-gradient-to-br from-indigo-950 via-slate-900 to-emerald-950 p-5 text-white shadow-sm">
         <p className="text-sm text-indigo-200">Wochenplan</p>
-        <h2 className="mt-2 text-2xl font-bold">Diese Woche</h2>
+        <h2 className="mt-2 text-2xl font-bold">{params.week ? "Ausgewählte Woche" : "Diese Woche"}</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">
           {isoDate(week.start)} bis {isoDate(new Date(week.end.getTime() - 1))}: Termine, Aufgaben und Familienpunkte an einem Ort.
         </p>
@@ -140,13 +147,18 @@ export default async function CalendarPage({
               {day.events.length > 0 ? (
                 <div className="mt-3 grid gap-2">
                   {day.events.map((event) => (
-                    <div key={event.id} className="rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                    <div
+                      id={`event-${event.id}`}
+                      key={event.id}
+                      className={`scroll-mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm ${params.event === event.id ? "ring-2 ring-emerald-400" : ""}`}
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <p className="font-semibold text-slate-950">{event.title}</p>
                         <span className="text-xs font-semibold text-emerald-700">{formatTime(event.startsAt)}</span>
                       </div>
                       <p className="mt-1 text-xs text-slate-500">{event.member?.name ?? "Familie"}</p>
                       {event.description ? <p className="mt-2 text-sm text-slate-600">{event.description}</p> : null}
+                      {event.planningEvent ? <Link href={`/app/planning/${event.planningEvent.id}`} className="mt-2 block text-xs font-semibold text-emerald-700">Zugehörige Planung öffnen →</Link> : null}
                     </div>
                   ))}
                 </div>

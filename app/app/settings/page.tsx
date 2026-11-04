@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { updateFamilyBadgeVisibilityAction } from "@/lib/family-access";
-import { requireFamilyContext } from "@/lib/family-context";
+import { updateFamilyBadgeVisibilityAction, updateRenovationModuleSettingAction } from "@/lib/family-access";
+import { requireFamilyAdmin } from "@/lib/family-context";
 
 export default async function SettingsPage() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
 
   return (
     <div className="space-y-5">
@@ -21,6 +21,29 @@ export default async function SettingsPage() {
           <p><strong>Familien-Login:</strong> {context.family.loginSlug ?? "wird beim ersten Kinderkonto automatisch gesetzt"}</p>
           <p><strong>Nutzer:</strong> {context.user.name}</p>
           <p><strong>Rolle:</strong> {context.role}</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Module</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form action={updateRenovationModuleSettingAction} className="space-y-4 text-sm text-slate-700">
+            <label className="flex items-start gap-3 rounded-3xl border border-slate-200 bg-white p-4">
+              <input
+                type="checkbox"
+                name="renovationModuleEnabled"
+                defaultChecked={context.family.renovationModuleEnabled}
+                className="mt-1 h-5 w-5 rounded border-slate-300 text-emerald-600"
+              />
+              <span>
+                <strong className="block text-slate-950">Renovierungsmodul aktivieren</strong>
+                Räume, Grundrisse, Material, Kosten und Renovierungsaufgaben als eigenen FamilyOS-Bereich anzeigen.
+              </span>
+            </label>
+            <Button type="submit">Module speichern</Button>
+          </form>
         </CardContent>
       </Card>
 

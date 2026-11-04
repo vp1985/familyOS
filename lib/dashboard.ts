@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireFamilyContext } from "@/lib/family-context";
+import { requireFamilyAdmin, requireFamilyAdminOrChild } from "@/lib/family-context";
 import { formatCents } from "@/lib/money";
 
 export type DashboardConsequence = {
@@ -102,14 +102,15 @@ export function buildKidsTaskView(input: { members: KidsMemberInput[]; tasks: Ki
 }
 
 export async function getKidsTaskData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdminOrChild();
+  const childId = context.childMemberId;
   const today = new Date();
   today.setUTCHours(23, 59, 59, 999);
 
   const [members, tasks] = await Promise.all([
-    db.familyMember.findMany({ where: { familyId: context.family.id, role: "child" }, orderBy: [{ createdAt: "asc" }] }),
+    db.familyMember.findMany({ where: { familyId: context.family.id, role: "child", ...(childId ? { id: childId } : {}) }, orderBy: [{ createdAt: "asc" }] }),
     db.taskOccurrence.findMany({
-      where: { familyId: context.family.id, status: { in: ["open", "in_progress"] }, dueAt: { lte: today } },
+      where: { familyId: context.family.id, ...(childId ? { familyMemberId: childId } : {}), status: { in: ["open", "in_progress"] }, dueAt: { lte: today } },
       orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
     }),
   ]);
@@ -251,7 +252,7 @@ export function buildDashboardSummary(input: {
 }
 
 export async function getDashboardData() {
-  const context = await requireFamilyContext();
+  const context = await requireFamilyAdmin();
 
   const today = new Date();
   today.setUTCHours(23, 59, 59, 999);

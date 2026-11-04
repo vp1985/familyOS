@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canReverseMoneyOccurrence,
   moneyOccurrenceStatusLabel,
   monthKey,
   prepareMoneyOccurrencesForMonth,
@@ -73,6 +74,13 @@ test("prepareMoneyOccurrencesForMonth snapshots active rule fields without accou
     autoConfirmSnapshot: false,
   });
   assert.equal(occurrences[1].destinationSnapshot, "Sparkonto");
+});
+
+test("a booked monthly position can only be reversed once", () => {
+  assert.equal(canReverseMoneyOccurrence({ status: "TRANSFERRED", bookedTransactionId: "booking-1", reversalTransactionId: null }), true);
+  assert.equal(canReverseMoneyOccurrence({ status: "OPEN", bookedTransactionId: null, reversalTransactionId: null }), false);
+  assert.equal(canReverseMoneyOccurrence({ status: "REVERSED", bookedTransactionId: "booking-1", reversalTransactionId: "reversal-1" }), false);
+  assert.equal(canReverseMoneyOccurrence({ status: "TRANSFERRED", bookedTransactionId: "booking-1", reversalTransactionId: "reversal-1" }), false);
 });
 
 test("moneyOccurrenceStatusLabel renders child-friendly German labels", () => {
